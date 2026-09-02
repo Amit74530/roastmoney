@@ -15,6 +15,62 @@
 .transaction-tools { display:grid; grid-template-columns:minmax(220px,1fr) repeat(3, auto); gap:10px; margin-bottom:14px; }.transaction-tools select { min-width:145px; padding:11px 12px; color:var(--muted); background:var(--surface); border:1px solid var(--border); font:10px var(--mono); }.transaction-list-head,.advanced-row { display:grid; grid-template-columns:1.6fr 1.3fr .85fr .9fr 86px; align-items:center; gap:15px; }.transaction-list-head { padding:11px 16px; color:var(--dim); font:9px var(--mono); letter-spacing:.8px; border-bottom:1px solid var(--border); }.advanced-row { min-height:76px; padding:12px 16px; border-bottom:1px solid var(--border); }.advanced-row:last-child { border-bottom:0; }.merchant-cell { display:flex; align-items:center; gap:12px; min-width:0; }.merchant-cell strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }.category-cell span,.category-cell small { display:block; }.category-cell span { color:var(--muted); font-size:12px; }.category-cell small { color:var(--dim); margin-top:4px; font:9px var(--mono); }.type-pill { justify-self:start; padding:5px 7px; font:9px var(--mono); border:1px solid currentColor; }.type-pill.income { color:var(--lime); }.type-pill.expense { color:var(--orange); }.advanced-amount { text-align:right; font:13px var(--mono); }.row-actions { display:flex; justify-content:flex-end; }.success-notice { display:flex; align-items:center; gap:8px; margin-bottom:12px; padding:10px 13px; color:var(--lime); background:rgba(223,255,63,.07); border:1px solid rgba(223,255,63,.25); font:10px var(--mono); }.transaction-empty { grid-column:1 / -1; min-height:280px; padding:35px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; }.transaction-empty .empty-mark { color:var(--lime); font:34px var(--mono); }.transaction-empty h2 { max-width:450px; margin:14px 0 4px; font-size:22px; }.transaction-empty p { color:var(--muted); margin-bottom:22px; font:11px var(--mono); }.optional { color:var(--dim); font-size:9px; }.modal-form textarea { min-height:76px; resize:vertical; padding:10px; color:var(--text); background:var(--surface); border:1px solid var(--border); outline:0; }.modal-form textarea:focus { border-color:var(--lime); }.modal-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:5px; }.delete-button { color:#07090d; background:var(--red); }.confirm-icon { display:grid; place-items:center; width:42px; height:42px; margin-bottom:20px; color:var(--red); border:1px solid currentColor; }.modal-copy { color:var(--muted); margin:10px 0 25px; line-height:1.6; }
 @media (max-width:900px) { .transaction-tools { grid-template-columns:1fr 1fr; }.transaction-tools .search { grid-column:1 / -1; } .transaction-list-head { display:none; }.advanced-row { grid-template-columns:1fr auto auto; gap:10px; }.category-cell { grid-column:1; margin-left:48px; }.type-pill { grid-column:2; grid-row:1; }.advanced-amount { grid-column:3; grid-row:1; }.row-actions { grid-column:2 / 4; grid-row:2; justify-content:flex-end; } }
 @media (max-width:520px) { .transaction-tools { grid-template-columns:1fr; }.transaction-tools .search { grid-column:auto; }.transaction-tools select { width:100%; }.advanced-row { padding:14px 8px; }.transaction-card { padding:4px 10px; }.category-cell { margin-left:48px; }.modal-actions { flex-direction:column-reverse; }.modal-actions .button { width:100%; } }
+
+/* Responsive guardrails for the shared application shell and dense views. */
+html, body { overflow-x: hidden; }
+.main, .page, .card, .modal, .auth, .auth-brand, .auth-form { min-width: 0; max-width: 100%; }
+.page-intro h1, .headline, .lead, .card h2, .auth-form h2 { overflow-wrap: anywhere; }
+.topbar > div { min-width: 0; }
+.topbar h3, .crumb { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.modal-backdrop { overflow-y: auto; }
+.modal { max-height: calc(100vh - 40px); overflow-y: auto; }
+.recharts-responsive-container { min-width: 0 !important; }
+
+@media (min-width: 521px) and (max-width: 1024px) {
+  .page { padding: 36px 28px 64px; }
+  .topbar { padding-inline: 28px; }
+  .dashboard-grid, .analytics-panels { grid-template-columns: 1fr; }
+  .metrics, .financial-summary, .analytics-statistics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .transaction-tools { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .transaction-tools .search { grid-column: 1 / -1; }
+  .transaction-tools select { width: 100%; min-width: 0; }
+}
+
+@media (max-width: 520px) {
+  .page { width: 100%; padding: 26px 14px 48px; }
+  .topbar { padding-inline: 14px; }
+  .page-intro { width: 100%; gap: 14px; margin-bottom: 24px; }
+  .page-intro h1 { max-width: 100%; font-size: clamp(28px, 9vw, 38px); letter-spacing: -2px; }
+  .headline { max-width: 100%; font-size: 17px; }
+  .compact-intro > .button { width: 100%; }
+  .auth-brand h1 { max-width: 100%; font-size: clamp(44px, 14vw, 58px); }
+  .auth-form h2 { font-size: clamp(28px, 9vw, 38px); letter-spacing: -1.5px; }
+  .auth-form { padding: 32px 20px; }
+  .auth-brand { padding: 26px 20px; }
+  .card, .chart-card, .roast-card, .recent, .analytics-chart-card, .money-report { max-width: 100%; }
+  .section-head { min-width: 0; }
+  .section-head h2 { max-width: 100%; overflow-wrap: anywhere; }
+  .chart { margin-left: 27px; margin-right: 0; }
+  .chart-x { font-size: 8px; }
+  .recharts-wrap { width: 100%; height: 250px; margin-top: 12px; }
+  .analytics-chart-card { overflow: hidden; }
+  .category-chart-body { width: 100%; }
+  .category-chart-body .recharts-responsive-container { min-height: 190px; }
+  .analytics-filter { width: 100%; max-width: 100%; }
+  .analytics-filter button { min-width: 0; padding-inline: 4px; font-size: 8px; }
+  .transaction-tools { width: 100%; }
+  .transaction-tools select { min-width: 0; }
+  .advanced-row { min-width: 0; }
+  .merchant-cell strong { max-width: calc(100vw - 190px); }
+  .category-cell { min-width: 0; overflow-wrap: anywhere; }
+  .advanced-amount { white-space: nowrap; }
+  .modal { width: 100%; padding: 20px; }
+  .form-row { grid-template-columns: 1fr; gap: 18px; }
+  .monthly-item { min-width: 0; }
+  .wrapped { min-height: calc(100vh - 72px); padding: 20px 14px 25px; }
+  .wrapped-stage strong { max-width: 100%; overflow-wrap: anywhere; font-size: clamp(42px, 14vw, 72px); }
+  .wrapped-controls .button { min-width: 0; padding-inline: 8px; }
+}
 .counter {
   font-size: 16px;
   padding: 5px 10px;
