@@ -1,0 +1,93 @@
+/* ==========================================================================
+   ROAST.MONEY — Design Tokens
+   ========================================================================== */
+
+:root {
+  /* ---- Color: base ---- */
+  --color-bg: #121110;
+  --color-bg-raised: #1A1815;
+  --color-bg-sunken: #0B0A09;
+  --color-paper: #F6F1E7;         /* warm white, "receipt paper" */
+  --color-paper-dim: #D9D2C2;
+  --color-ink: #F6F1E7;           /* primary text on dark */
+  --color-ink-dim: #A79E8C;       /* secondary text on dark */
+  --color-ink-faint: #6E6759;     /* tertiary text on dark */
+  --color-border: #2C2A25;
+  --color-border-strong: #3E3B33;
+
+  /* ---- Color: brand accent (Warning Amber — the ledger stamp) ---- */
+  --color-accent: #FFB800;
+  --color-accent-dim: #C79000;
+  --color-accent-ink: #1C1500;    /* text placed on top of accent */
+
+  /* ---- Color: status ---- */
+  --color-status-calm: #7FBF8F;
+  --color-status-concerning: #E8483C;
+  --color-status-severe: #FF6A3D;
+
+  /* ---- Typography ---- */
+  --font-display: 'Fraunces', 'Iowan Old Style', Georgia, serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', 'SFMono-Regular', Menlo, monospace;
+
+  --fs-display-xl: clamp(2.7rem, 5vw, 5rem);
+  --fs-display-lg: clamp(2.1rem, 3.7vw, 3.2rem);
+  --fs-display-md: clamp(1.5rem, 2.6vw, 2.2rem);
+  --fs-heading: clamp(1.1rem, 1.7vw, 1.5rem);
+  --fs-body-lg: 1rem;
+  --fs-body: 0.96rem;
+  --fs-small: 0.8rem;
+  --fs-micro: 0.7rem;
+
+  --lh-tight: 1.04;
+  --lh-snug: 1.2;
+  --lh-normal: 1.45;
+  --lh-loose: 1.65;
+
+  --ls-tight: -0.02em;
+  --ls-normal: 0;
+  --ls-wide: 0.06em;
+  --ls-wider: 0.14em;
+
+  /* ---- Spacing scale (8px base) ---- */
+  --space-1: 0.4rem;
+  --space-2: 0.8rem;
+  --space-3: 1.1rem;
+  --space-4: 1.4rem;
+  --space-5: 2rem;
+  --space-6: 2.7rem;
+  --space-7: 3.8rem;
+  --space-8: 5.2rem;
+  --space-9: 7.4rem;
+
+  /* ---- Radii ---- */
+  --radius-none: 0;
+  --radius-sm: 4px;
+  --radius-md: 10px;
+  --radius-pill: 999px;
+
+  /* ---- Shadows (used sparingly, on floating receipt only) ---- */
+  --shadow-float: 0 20px 60px -20px rgba(0, 0, 0, 0.55);
+  --shadow-lift: 0 8px 24px -12px rgba(0, 0, 0, 0.4);
+
+  /* ---- Motion ---- */
+  --ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-sharp: cubic-bezier(0.6, 0, 0.2, 1);
+  --dur-micro: 160ms;
+  --dur-standard: 340ms;
+  --dur-dramatic: 700ms;
+
+  /* ---- Layout ---- */
+  --container-max: 1240px;
+  --container-pad: clamp(1.5rem, 4vw, 3.5rem);
+  --nav-height: 76px;
+  --hairline: 1px solid var(--color-border);
+}
+
+@media (max-width: 480px) {
+  :root {
+    --space-7: 3.2rem;
+    --space-8: 4.4rem;
+    --space-9: 6rem;
+  }
+}

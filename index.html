@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ROAST.MONEY — Your money has opinions.</title>
+<meta name="description" content="ROAST.MONEY turns everyday spending into brutally honest observations about the way you live, shop, and occasionally lose control." />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400;1,9..144,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="css/reset.css">
+<link rel="stylesheet" href="css/variables.css">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/components.css">
+<link rel="stylesheet" href="css/animations.css">
+</head>
+<body class="is-loading">
+
+<div class="page-loader" aria-live="polite" aria-label="Loading ROAST.MONEY">
+  <div class="page-loader-inner">
+    <span class="page-loader-brand">ROAST.MONEY</span>
+    <div class="page-loader-bar" aria-hidden="true">
+      <span class="page-loader-fill"></span>
+    </div>
+    <span class="page-loader-text">Loading your financial drama…</span>
+  </div>
+</div>
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<!-- ============ NAV ============ -->
+<header class="nav">
+  <div class="nav-inner">
+    <a href="#" class="nav-logo" aria-label="ROAST.MONEY home">ROAST.MONEY</a>
+
+    <nav class="nav-menu" id="nav-menu" aria-label="Primary">
+      <a href="#how">THE PRODUCT</a>
+      <a href="#history">YOUR MONEY</a>
+      <a href="#personality">PERSONALITY</a>
+      <a href="#wrapped">WRAPPED</a>
+    </nav>
+
+    <div class="nav-actions">
+      <a href="#lab" class="btn btn-accent btn-small">GET ROASTED</a>
+      <button class="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="nav-menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- ============ HERO ============ -->
+  <section class="hero">
+    <div class="hero-inner">
+      <div class="hero-copy">
+        <p class="eyebrow">PERSONAL FINANCE, WITH ATTITUDE.</p>
+        <h1 class="hero-headline">YOUR MONEY<br>HAS OPINIONS.</h1>
+        <p class="hero-sub">ROAST.MONEY turns everyday spending into brutally honest observations about the way you live, shop and occasionally lose control.</p>
+        <div class="hero-actions">
+          <a href="#lab" class="btn btn-accent">GET ROASTED</a>
+          <a href="#history" class="btn btn-outline">SEE THE DAMAGE</a>
+        </div>
+        <div class="wallet-mood">
+          <span class="wallet-mood-label-heading">WALLET MOOD</span>
+          <span class="wallet-mood-dot" data-mood="calm" aria-hidden="true"></span>
+          <span class="wallet-mood-label">calm</span>
+        </div>
+      </div>
+
+      <div class="hero-visual">
+        <div class="hero-receipt" data-magnetic="6" aria-live="polite"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ HOW IT WORKS ============ -->
+  <section class="how-it-works" id="how">
+    <div class="section-inner">
+      <p class="section-eyebrow" data-reveal>THE PRODUCT</p>
+      <h2 class="section-heading" data-reveal>Four steps. No mercy.</h2>
+
+      <div class="how-steps">
+        <article class="how-step is-active" data-reveal>
+          <span class="how-step-number">01</span>
+          <h3>You spend</h3>
+          <p>Every swipe, tap and midnight order gets logged the moment it happens.</p>
+        </article>
+        <article class="how-step" data-reveal>
+          <span class="how-step-number">02</span>
+          <h3>We notice</h3>
+          <p>Amount, category, merchant, timing — patterns start forming whether you like it or not.</p>
+        </article>
+        <article class="how-step" data-reveal>
+          <span class="how-step-number">03</span>
+          <h3>We judge</h3>
+          <p>A rule-based engine turns your data into commentary you didn't ask for but probably deserve.</p>
+        </article>
+        <article class="how-step" data-reveal>
+          <span class="how-step-number">04</span>
+          <h3>You reflect</h3>
+          <p>Personality, achievements, and a monthly Wrapped you can't unsee.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TRANSACTION LAB ============ -->
+  <section class="lab" id="lab">
+    <div class="section-inner">
+      <p class="section-eyebrow" data-reveal>TRY IT YOURSELF</p>
+      <h2 class="section-heading" data-reveal>Give us a purchase. We'll give you an opinion.</h2>
+
+      <div class="lab-grid" data-reveal>
+        <form class="lab-form" novalidate>
+          <div class="field">
+            <label for="lab-merchant">Merchant</label>
+            <input id="lab-merchant" name="merchant" type="text" placeholder="e.g. Swiggy" required maxlength="40">
+          </div>
+          <div class="field">
+            <label for="lab-amount">Amount (₹)</label>
+            <input id="lab-amount" name="amount" type="number" min="0" step="1" placeholder="749" required>
+          </div>
+          <div class="field">
+            <label for="lab-category">Category</label>
+            <select id="lab-category" name="category">
+              <option>Food</option>
+              <option>Shopping</option>
+              <option>Travel</option>
+              <option>Entertainment</option>
+              <option>Subscriptions</option>
+              <option>Bills</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="lab-time">Time</label>
+            <input id="lab-time" name="time" type="time">
+          </div>
+          <button type="submit" class="btn btn-accent lab-submit">ROAST THIS PURCHASE</button>
+        </form>
+
+        <div class="lab-output">
+          <div class="lab-loading" aria-live="polite"></div>
+          <div class="lab-result" aria-live="polite"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TRANSACTION HISTORY ============ -->
+  <section class="history" id="history">
+    <div class="section-inner">
+      <div class="history-header" data-reveal>
+        <div>
+          <p class="section-eyebrow">YOUR MONEY</p>
+          <h2 class="section-heading">The full damage report.</h2>
+        </div>
+        <p class="history-count">0 transactions</p>
+      </div>
+
+      <div class="history-controls" data-reveal>
+        <input type="search" class="history-search" placeholder="Search merchant…" aria-label="Search transactions by merchant">
+        <select class="history-category" aria-label="Filter by category">
+          <option value="all">All categories</option>
+          <option>Food</option>
+          <option>Shopping</option>
+          <option>Travel</option>
+          <option>Entertainment</option>
+          <option>Subscriptions</option>
+          <option>Bills</option>
+          <option>Other</option>
+        </select>
+        <select class="history-sort" aria-label="Sort transactions">
+          <option value="newest">Newest first</option>
+          <option value="oldest">Oldest first</option>
+          <option value="highest">Highest amount</option>
+          <option value="lowest">Lowest amount</option>
+        </select>
+      </div>
+
+      <div class="history-body" data-reveal>
+        <ul class="tx-list" aria-label="Transaction history"></ul>
+        <aside class="tx-detail" aria-label="Transaction detail">
+          <p class="panel-placeholder">Select a transaction to see the full verdict.</p>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ HEATMAP ============ -->
+  <section class="heatmap-section">
+    <div class="section-inner">
+      <p class="section-eyebrow" data-reveal>THE CALENDAR</p>
+      <h2 class="section-heading" data-reveal>August, day by day.</h2>
+      <p class="section-sub" data-reveal>Hover a day for the number. Click it to filter your history above.</p>
+
+      <div class="heatmap-wrap" data-reveal>
+        <div class="heatmap-grid" role="img" aria-label="Spending intensity calendar for August 2026"></div>
+        <div class="heatmap-tooltip" hidden></div>
+      </div>
+      <div class="heatmap-legend">
+        <span>Less</span>
+        <span class="legend-swatch" data-level="0"></span>
+        <span class="legend-swatch" data-level="1"></span>
+        <span class="legend-swatch" data-level="2"></span>
+        <span class="legend-swatch" data-level="3"></span>
+        <span class="legend-swatch" data-level="4"></span>
+        <span>More</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MONEY FLOW ============ -->
+  <section class="flow-section">
+    <div class="section-inner">
+      <p class="section-eyebrow" data-reveal>WHERE IT WENT</p>
+      <h2 class="section-heading" data-reveal>Your money starts here.</h2>
+
+      <div class="flow-viz" data-reveal>
+        <p class="flow-total-label">TOTAL SPENT</p>
+        <p class="flow-total-amount">₹0</p>
+        <p class="flow-footnote">That's before we discuss the unnecessary ₹129 coffees.</p>
+        <div class="flow-branches"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PERSONALITY ============ -->
+  <section class="personality" id="personality">
+    <div class="section-inner">
+      <p class="section-eyebrow" data-reveal>THE DIAGNOSIS</p>
+      <h2 class="section-heading" data-reveal>Your spending, decoded.</h2>
+
+      <div class="personality-layout" data-reveal>
+        <div class="personality-panel"></div>
+        <div class="roast-score-card">
+          <p class="roast-score-eyebrow">ROAST LEVEL</p>
+          <p class="roast-score-value">0</p>
+          <p class="roast-score-label">RESPONSIBLE</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ ACHIEVEMENTS ============ -->
+  <section class="achievements-section">
+    <div class="section-inner">
+      <p class="section-eyebrow" data-reveal>PROOF OF HABITS</p>
+      <h2 class="section-heading" data-reveal>Achievements you didn't ask for.</h2>
+      <ul class="achievements-grid" data-reveal></ul>
+    </div>
+  </section>
+
+  <!-- ============ WRAPPED ============ -->
+  <section class="wrapped" id="wrapped">
+    <div class="section-inner">
+      <p class="section-eyebrow" data-reveal>MONEY WRAPPED</p>
+      <h2 class="section-heading" data-reveal>Your month, unfortunately.</h2>
+
+      <div class="wrapped-card" data-reveal>
+        <div class="wrapped-progress"></div>
+        <div class="wrapped-stage"></div>
+        <div class="wrapped-nav">
+          <button class="btn btn-ghost wrapped-back" disabled>← BACK</button>
+          <button class="btn btn-accent wrapped-next">NEXT →</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SHARE CARD ============ -->
+  <section class="share-section">
+    <div class="section-inner">
+      <p class="section-eyebrow" data-reveal>MAKE IT PUBLIC</p>
+      <h2 class="section-heading" data-reveal>Share your diagnosis.</h2>
+      <p class="section-sub" data-reveal>Generated entirely in your browser. Nothing leaves your device.</p>
+      <div class="share-actions" data-reveal>
+        <button class="btn btn-accent share-trigger">SHARE MY ROAST</button>
+        <a class="btn btn-outline share-download" download="roast-money-card.png" hidden>DOWNLOAD CARD</a>
+      </div>
+      <canvas class="share-canvas" hidden aria-label="Generated roast share card"></canvas>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <div class="section-inner footer-inner">
+    <p class="footer-logo">ROAST.MONEY</p>
+    <p class="footer-note">A prototype. No real transactions were harmed in the making of this roast.</p>
+  </div>
+</footer>
+
+<div class="easter-egg-toast" role="status" aria-live="polite"></div>
+
+<script src="js/demo-data.js"></script>
+<script src="js/roast-engine.js"></script>
+<script src="js/personality-engine.js"></script>
+<script src="js/animations.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

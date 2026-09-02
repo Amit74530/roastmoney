@@ -1,0 +1,27 @@
+/* ==========================================================================
+   ROAST.MONEY — Motion
+   ========================================================================== */
+
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity var(--dur-dramatic) var(--ease-standard),
+              transform var(--dur-dramatic) var(--ease-standard);
+}
+[data-reveal].is-revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+[data-magnetic] {
+  transition: transform var(--dur-standard) var(--ease-standard);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+  [data-magnetic] { transition: none !important; }
+}
