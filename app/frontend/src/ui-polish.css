@@ -1,0 +1,24 @@
+.financial-health.lime { border-left-color: var(--health-ok); }
+.dashboard-hero { position: relative; }
+.dashboard-hero-copy { min-width: 0; }
+.dashboard-hero h1 { max-width: 680px; }
+.button, .icon-button, .nav-link, .bottom-nav-link, .card, .add-nav-action {
+  transition: transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+}
+.button:not(:disabled):active, .icon-button:active, .bottom-nav-link:active, .add-nav-action:active {
+  transform: scale(0.97);
+}
+.add-nav-action:active svg { transform: rotate(90deg); }
+.theme-toggle { color: var(--lime); }
+.profile > div:nth-child(2) { min-width: 0; }
+
+@media (hover: hover) and (pointer: fine) {
+  .card:hover { border-color: color-mix(in srgb, var(--lime) 28%, var(--border)); }
+  .add-nav-action:hover { transform: translateY(-3px); }
+}
+
+@media (max-width: 600px) {
+  .dashboard-hero-description { display: none; }
+  .dashboard-ambient { inset: -4vh -16vw; }
+  .orb-three { display: none; }
+}

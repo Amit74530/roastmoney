@@ -12,5 +12,39 @@ export default function Analytics({ transactions }) {
   const selectedTransactions = useMemo(() => filterTransactionsByTime(transactions, filter), [transactions, filter])
   const previousTransactions = useMemo(() => getPreviousPeriodTransactions(transactions, filter), [transactions, filter])
   const hasEvidence = selectedTransactions.length > 0
-  return <><div className="analytics-intro page-intro compact-intro"><div><p className="eyebrow">FINANCIAL INTELLIGENCE / CASE FILE 02</p><h1>YOUR MONEY, UNDER INVESTIGATION.</h1><p className="lead">Patterns, habits, and the evidence you hoped we wouldn't find.</p></div><div className="analytics-filter"><Search size={16} />{timeFilters.map((item) => <button className={filter === item.value ? 'active' : ''} onClick={() => setFilter(item.value)} key={item.value}>{item.label}</button>)}</div></div>{hasEvidence ? <><FinancialStatistics transactions={selectedTransactions} /><div className="analytics-panels"><IncomeExpenseChart transactions={selectedTransactions} /><SpendingCategoryChart transactions={selectedTransactions} /></div><MoneyInsights transactions={selectedTransactions} previousTransactions={previousTransactions} /></> : <section className="analytics-empty card"><span className="empty-mark">//</span><span className="eyebrow">CASE FILE / INCONCLUSIVE</span><h2>NOT ENOUGH EVIDENCE.</h2><p>ADD MORE TRANSACTIONS TO INVESTIGATE YOUR MONEY.</p><Link to="/transactions" className="button lime">ADD TRANSACTION <ArrowRight size={16} /></Link></section>}</>
+  return (
+    <>
+      <div className="analytics-intro page-intro compact-intro">
+        <div>
+          <p className="eyebrow">Financial intelligence / case file 02</p>
+          <h1>Your money, under investigation.</h1>
+          <p className="lead">Patterns, habits, and the evidence you hoped we wouldn't find.</p>
+        </div>
+        <div className="analytics-filter">
+          <Search size={16} />
+          {timeFilters.map((item) => (
+            <button className={filter === item.value ? 'active' : ''} onClick={() => setFilter(item.value)} key={item.value}>{item.label}</button>
+          ))}
+        </div>
+      </div>
+      {hasEvidence ? (
+        <>
+          <FinancialStatistics transactions={selectedTransactions} />
+          <div className="analytics-panels">
+            <IncomeExpenseChart transactions={selectedTransactions} />
+            <SpendingCategoryChart transactions={selectedTransactions} />
+          </div>
+          <MoneyInsights transactions={selectedTransactions} previousTransactions={previousTransactions} />
+        </>
+      ) : (
+        <section className="analytics-empty card">
+          <span className="empty-mark">//</span>
+          <span className="eyebrow">Case file / inconclusive</span>
+          <h2>Not enough evidence.</h2>
+          <p>Add more transactions to investigate your money.</p>
+          <Link to="/transactions?add=1" className="button lime">Add transaction <ArrowRight size={16} /></Link>
+        </section>
+      )}
+    </>
+  )
 }
