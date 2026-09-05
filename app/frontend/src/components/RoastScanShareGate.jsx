@@ -46,7 +46,7 @@ export default function RoastScanShareGate({ isAuthenticated }) {
       removed = true
       if (listenerHandle) listenerHandle.remove()
     }
-  }, [isAuthenticated, location.pathname, navigate])
+  }, [isAuthenticated, location.pathname, location.search, navigate])
 
   return null
 }

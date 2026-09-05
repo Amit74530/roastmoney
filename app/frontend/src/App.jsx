@@ -5,7 +5,7 @@ import { demoData } from './data/demoData'
 import { supabase } from './lib/supabaseClient'
 import { fetchUserTransactions, createUserTransaction, updateUserTransaction, deleteUserTransaction } from './lib/transactionService'
 import { generateExpenseRoast } from './lib/engines/insights'
-import { clearUser, getPreferences, getUser, savePreferences, saveUser } from './utils/storage'
+import { clearUser, getPreferences, getUser, savePreferences, saveUser, subscribePreferences } from './utils/storage'
 import DashboardPage from './pages/Dashboard'
 import AnalyticsPage from './pages/Analytics'
 import PersonalityPage from './pages/Personality'
@@ -113,7 +113,7 @@ function Auth({ mode }) {
           const { error: profileError } = await supabase.from('profiles').upsert(profilePayload, { onConflict: 'id' })
           if (profileError) console.error('[Auth] Profile creation failed:', profileError)
           saveUser(buildUserFromSupabase(data.user))
-          setSuccess('Account created. Redirecting to your dashboardΓÇª')
+          setSuccess('Account created. Redirecting to your dashboard…')
           navigate('/dashboard')
         }
       } else {
@@ -121,7 +121,7 @@ function Auth({ mode }) {
         if (loginError) throw loginError
         if (data?.user) {
           saveUser(buildUserFromSupabase(data.user))
-          setSuccess('Welcome back. RedirectingΓÇª')
+          setSuccess('Welcome back. Redirecting…')
           navigate('/dashboard')
         }
       }
@@ -163,12 +163,12 @@ function Auth({ mode }) {
               <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="you@example.com" />
             </label>
             <label>Password
-              <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="ΓÇóΓÇóΓÇóΓÇóΓÇóΓÇóΓÇóΓÇó" />
+              <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="••••••••" />
             </label>
             {error && <p className="error">{error}</p>}
             {success && <p className="success">{success}</p>}
             <button className="button lime" disabled={loading}>
-              {loading ? 'WorkingΓÇª' : (mode === 'login' ? 'Enter the damage' : 'Start the diagnosis')}
+              {loading ? 'Working…' : (mode === 'login' ? 'Enter the damage' : 'Start the diagnosis')}
               <ArrowRight size={16} />
             </button>
           </form>
@@ -196,8 +196,11 @@ function Shell({ children }) {
   useEffect(() => {
     const resolvedTheme = theme === 'system' ? (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark') : theme
     document.documentElement.dataset.theme = resolvedTheme
-    savePreferences({ ...getPreferences(), theme })
   }, [theme])
+
+  useEffect(() => subscribePreferences(() => {
+    setTheme(getPreferences().theme || 'system')
+  }), [])
 
   useEffect(() => {
     if (sessionStorage.getItem('roastmoney-add-hint-seen')) return undefined
@@ -233,7 +236,11 @@ function Shell({ children }) {
   }
 
   const cycleTheme = () => {
-    setTheme((current) => current === 'dark' ? 'light' : current === 'light' ? 'system' : 'dark')
+    setTheme((current) => {
+      const next = current === 'dark' ? 'light' : current === 'light' ? 'system' : 'dark'
+      savePreferences({ ...getPreferences(), theme: next })
+      return next
+    })
   }
 
   const themeIcon = theme === 'dark' ? <SunMedium size={18} /> : <Moon size={18} />
@@ -300,6 +307,15 @@ function Shell({ children }) {
 function Settings() {
   const user = getUser() || demoData.user
   const [intensity, setIntensity] = useState(getPreferences().intensity)
+  const [theme, setTheme] = useState(getPreferences().theme || 'system')
+  const themeLabel = theme === 'light' ? 'Light' : theme === 'dark' ? 'Dark' : 'System'
+
+  useEffect(() => subscribePreferences(() => {
+    const prefs = getPreferences()
+    setIntensity(prefs.intensity)
+    setTheme(prefs.theme || 'system')
+  }), [])
+
   return (
     <>
       <div className="page-intro compact-intro">
@@ -332,10 +348,14 @@ function Settings() {
         <div className="setting">
           <div>
             <span className="eyebrow">Appearance</span>
-            <h2>Dark mode</h2>
-            <p>The only mode with enough self-awareness.</p>
+            <h2>{themeLabel} theme</h2>
+            <p>Matches the control in the top bar. System follows the device.</p>
           </div>
-          <span className="status lime-status"><i /> Default</span>
+          <div className="segmented preference">
+            {['dark', 'light', 'system'].map((item) => (
+              <button className={theme === item ? 'active' : ''} onClick={() => { setTheme(item); savePreferences({ ...getPreferences(), theme: item }) }} key={item}>{item}</button>
+            ))}
+          </div>
         </div>
       </section>
     </>
@@ -343,7 +363,14 @@ function Settings() {
 }
 
 function Protected({ children, isAuthenticated, authReady }) {
-  if (!authReady) return null
+  if (!authReady) {
+    return (
+      <main className="auth-loading" role="status">
+        <p className="eyebrow">ROAST.MONEY</p>
+        <h1>Loading your ledger…</h1>
+      </main>
+    )
+  }
   return isAuthenticated ? <Shell>{children}</Shell> : <Navigate to="/login" replace />
 }
 
@@ -424,7 +451,7 @@ function App() {
     if (!session?.user) return
     try {
       const created = await createUserTransaction(session.user.id, payload)
-      const subject = { ...created[0], time: payload.time }
+      const subject = { ...created[0], time: payload.time || created[0].time }
       const roast = subject.type === 'expense'
         ? generateExpenseRoast(subject, transactions, getPreferences().intensity)
         : null
@@ -474,7 +501,7 @@ function App() {
               <Route path="/personality" element={<PersonalityPage transactions={transactions} />} />
               <Route path="/achievements" element={<AchievementsPage transactions={transactions} />} />
               <Route path="/wrapped" element={<WrappedPage transactions={transactions} />} />
-              <Route path="/roastscan" element={<RoastScanPage />} />
+              <Route path="/roastscan" element={<RoastScanPage transactions={transactions} onSave={handleAddTransaction} />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>

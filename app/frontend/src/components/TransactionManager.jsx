@@ -1,19 +1,27 @@
 ﻿import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Check, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
+import { expenseCategories, incomeCategories } from '../lib/transactionCategories'
+import { localDateInputValue, localTimeInputValue } from '../utils/localDate'
 
-const money = (value) => `Γé╣${Math.round(Math.abs(value)).toLocaleString('en-IN')}`
-const emptyForm = { title: '', amount: '', type: 'expense', category: 'Food', transaction_date: '2026-09-02', time: '12:00', description: '' }
-
-const incomeCategories = ['Salary', 'Freelance', 'Business', 'Investment', 'Other']
-const expenseCategories = ['Food', 'Transport', 'Shopping', 'Entertainment', 'Bills', 'Health', 'Education', 'Other']
+const money = (value) => `₹${Math.round(Math.abs(value)).toLocaleString('en-IN')}`
+const emptyForm = () => ({
+  title: '',
+  amount: '',
+  type: 'expense',
+  category: 'Food',
+  transaction_date: localDateInputValue(),
+  time: localTimeInputValue(),
+  description: '',
+})
 
 function TransactionForm({ initial, onSave, onClose, loading = false }) {
   const [form, setForm] = useState({
-    ...emptyForm,
+    ...emptyForm(),
     ...initial,
     title: initial?.title || initial?.merchant || '',
-    transaction_date: initial?.transaction_date || initial?.date || emptyForm.transaction_date,
+    transaction_date: initial?.transaction_date || initial?.date || localDateInputValue(),
+    time: initial?.time || localTimeInputValue(),
     description: initial?.description || initial?.notes || '',
     type: initial?.type || 'expense',
   })
@@ -40,10 +48,13 @@ function TransactionForm({ initial, onSave, onClose, loading = false }) {
   return (
     <form className="modal-form" onSubmit={submit}>
       <label>Merchant / name<input required value={form.title} onChange={(event) => update('title', event.target.value)} /></label>
-      <label>Amount (Γé╣)<input required type="number" min="0" step="0.01" value={form.amount} onChange={(event) => update('amount', event.target.value)} /></label>
+      <label>Amount (₹)<input required type="number" min="0" step="0.01" value={form.amount} onChange={(event) => update('amount', event.target.value)} /></label>
       <div className="form-row">
         <label>Type
-          <select value={form.type} onChange={(event) => { const nextType = event.target.value; update('type', nextType); update('category', nextType === 'income' ? 'Salary' : 'Food') }}>
+          <select value={form.type} onChange={(event) => {
+            const nextType = event.target.value
+            setForm((current) => ({ ...current, type: nextType, category: nextType === 'income' ? 'Salary' : 'Food' }))
+          }}>
             <option value="expense">Expense</option>
             <option value="income">Income</option>
           </select>
@@ -62,7 +73,7 @@ function TransactionForm({ initial, onSave, onClose, loading = false }) {
       {error && <p className="error">{error}</p>}
       <div className="modal-actions">
         <button type="button" className="button outline" onClick={onClose}>Cancel</button>
-        <button className="button lime" disabled={loading}>{loading ? 'SavingΓÇª' : 'Save transaction'} <Check size={16} /></button>
+        <button className="button lime" disabled={loading}>{loading ? 'Saving…' : 'Save transaction'} <Check size={16} /></button>
       </div>
     </form>
   )
@@ -219,7 +230,7 @@ export default function TransactionManager({ transactions, loading: fetching, fe
           <p className="modal-copy">{dialog.transaction.title} will be removed permanently. This action cannot be undone.</p>
           <div className="modal-actions">
             <button className="button outline" onClick={() => setDialog(null)}>Cancel</button>
-            <button className="button delete-button" disabled={loading} onClick={remove}>{loading ? 'DeletingΓÇª' : 'Delete transaction'}</button>
+            <button className="button delete-button" disabled={loading} onClick={remove}>{loading ? 'Deleting…' : 'Delete transaction'}</button>
           </div>
         </Overlay>
       )}

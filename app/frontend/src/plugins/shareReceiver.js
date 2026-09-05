@@ -3,6 +3,9 @@ import { Capacitor, registerPlugin } from '@capacitor/core'
 const webShareReceiver = {
   getPendingShare: async () => ({ received: false }),
   clearPendingShare: async () => undefined,
+  readPendingShareForUpload: async () => {
+    throw new Error('Share-to-RoastScan is available in the Android app.')
+  },
 }
 
 export const ShareReceiver = registerPlugin('ShareReceiver', {

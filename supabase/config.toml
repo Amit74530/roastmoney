@@ -1,0 +1,4 @@
+project_id = "tsycpkdixtjxxkjlwsww"
+
+[functions.roastscan-extract]
+verify_jwt = true
