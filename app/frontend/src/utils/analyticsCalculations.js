@@ -1,10 +1,10 @@
 import { calculateFinancialSummary, transactionAmount, transactionCalendarDate, transactionIsIncome } from './financialCalculations'
 
 export const timeFilters = [
-  { value: 'month', label: 'THIS MONTH', months: 1 },
-  { value: 'three', label: 'LAST 3 MONTHS', months: 3 },
-  { value: 'six', label: 'LAST 6 MONTHS', months: 6 },
-  { value: 'all', label: 'ALL TIME', months: null },
+  { value: 'month', label: 'This month', months: 1 },
+  { value: 'three', label: 'Last 3 months', months: 3 },
+  { value: 'six', label: 'Last 6 months', months: 6 },
+  { value: 'all', label: 'All time', months: null },
 ]
 
 const startOfDay = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate())
