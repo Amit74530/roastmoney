@@ -3,25 +3,29 @@
 :root {
   --background: #090d0b;
   --surface: #151b18;
-  --surface-elevated: #1a211d;
-  --surface-card: #121814;
+  --surface-elevated: #1c2420;
+  --surface-card: #161d19;
   --primary: #39e58c;
-  --primary-soft: rgba(223, 255, 0, 0.14);
+  --accent-primary: #39e58c;
+  --accent-bright: #52f29a;
+  --accent-soft: #a7f3d0;
+  --accent-dark: #16a86b;
+  --primary-soft: rgba(57, 229, 140, 0.14);
   --text-primary: #f2f3ef;
   --text-secondary: #a0a8a2;
   --text-muted: #707873;
   --border: #28312b;
   --border-subtle: rgba(255, 255, 255, 0.07);
-  --auth-glow: rgba(223, 255, 0, 0.13);
-  --auth-grid: rgba(223, 255, 0, 0.045);
+  --auth-glow: rgba(57, 229, 140, 0.13);
+  --auth-grid: rgba(57, 229, 140, 0.045);
   --auth-panel: rgba(21, 27, 24, 0.88);
   --auth-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
-  --page-glow-a: rgba(223, 255, 0, 0.07);
+  --page-glow-a: rgba(57, 229, 140, 0.07);
   --page-glow-b: rgba(92, 122, 105, 0.08);
-  --glass-surface: rgba(21, 27, 24, 0.72);
+  --glass-surface: rgba(21, 27, 24, 0.62);
   --glass-strong: rgba(26, 33, 29, 0.84);
-  --glass-border: rgba(255, 255, 255, 0.09);
-  --glass-shadow: 0 12px 34px rgba(0, 0, 0, 0.18);
+  --glass-border: rgba(57, 229, 140, 0.18);
+  --glass-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
   --value-primary: var(--primary);
   --value-neutral: var(--text-primary);
   --chart-1: #39e58c;
@@ -61,8 +65,8 @@
 }
 
 html[data-theme='light'] {
-  --background: #f4f5f2;
-  --surface: #ffffff;
+  --background: #eef2ee;
+  --surface: #f7f9f6;
   --surface-elevated: #ffffff;
   --surface-card: #ffffff;
   --primary: #15945e;
@@ -71,21 +75,21 @@ html[data-theme='light'] {
   --accent-soft: #b5f1d1;
   --accent-dark: #087044;
   --primary-soft: rgba(21, 148, 94, 0.12);
-  --text-primary: #151815;
-  --text-secondary: #68706a;
-  --text-muted: #8b918d;
-  --border: #d9ddd7;
-  --border-subtle: #e7eae5;
+  --text-primary: #121612;
+  --text-secondary: #5c6560;
+  --text-muted: #7d8580;
+  --border: #d3dad4;
+  --border-subtle: #e4e9e4;
   --auth-glow: rgba(21, 148, 94, 0.09);
   --auth-grid: rgba(34, 48, 38, 0.06);
   --auth-panel: rgba(255, 255, 255, 0.86);
   --auth-shadow: 0 24px 70px rgba(48, 59, 50, 0.14);
   --page-glow-a: rgba(21, 148, 94, 0.08);
   --page-glow-b: rgba(118, 140, 112, 0.06);
-  --glass-surface: rgba(255, 255, 255, 0.7);
-  --glass-strong: rgba(255, 255, 255, 0.88);
-  --glass-border: rgba(20, 23, 20, 0.1);
-  --glass-shadow: 0 12px 34px rgba(48, 59, 50, 0.08);
+  --glass-surface: rgba(255, 255, 255, 0.72);
+  --glass-strong: rgba(255, 255, 255, 0.9);
+  --glass-border: rgba(21, 148, 94, 0.16);
+  --glass-shadow: 0 16px 36px rgba(48, 59, 50, 0.1);
   --value-primary: #087044;
   --value-neutral: var(--text-primary);
   --chart-1: #15945e;
@@ -96,16 +100,16 @@ html[data-theme='light'] {
   --success: #1ea672;
   --danger: #e4565d;
   --warning: #f0a43e;
-  --shadow-sm: 0 10px 30px rgba(17, 19, 24, 0.08);
-  --shadow-md: 0 20px 46px rgba(17, 19, 24, 0.12);
+  --shadow-sm: 0 8px 22px rgba(17, 19, 24, 0.06);
+  --shadow-md: 0 16px 38px rgba(17, 19, 24, 0.1);
   color-scheme: light;
 }
 
 html[data-theme='dark'] {
   --background: #090d0b;
   --surface: #151b18;
-  --surface-elevated: #1a211d;
-  --surface-card: #121814;
+  --surface-elevated: #1c2420;
+  --surface-card: #161d19;
   --primary: #39e58c;
   --accent-primary: #39e58c;
   --accent-bright: #52f29a;
@@ -218,6 +222,19 @@ html, body, #root {
 
 h1, h2, h3, p, strong, small, span, label {
   margin: 0;
+}
+
+.money,
+.tx-amount,
+.advanced-amount,
+.finance-card strong,
+.monthly-item strong,
+.analytics-stat strong,
+.roast-card h2,
+.roast-card p,
+.add-welcome,
+.add-nav-hint {
+  font-family: var(--font-mono);
 }
 
 button, input, select, textarea, .button {

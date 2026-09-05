@@ -1,12 +1,13 @@
 body { padding-bottom: env(safe-area-inset-bottom); }
 
 .financial-health {
+  --health-accent: var(--primary);
   min-width: 270px;
   padding: 1.1rem 1.2rem;
-  border-left: 3px solid var(--primary);
+  border-left: 3px solid var(--health-accent);
   background: var(--glass-surface);
-  border-color: var(--glass-border);
-  box-shadow: var(--glass-shadow), inset 3px 0 0 var(--primary);
+  border-color: color-mix(in srgb, var(--health-accent) 28%, var(--glass-border));
+  box-shadow: var(--glass-shadow), inset 3px 0 0 var(--health-accent);
   -webkit-backdrop-filter: blur(16px);
   backdrop-filter: blur(16px);
   overflow: hidden;
@@ -21,28 +22,25 @@ body { padding-bottom: env(safe-area-inset-bottom); }
   top: -70px;
   right: -40px;
   border-radius: 50%;
-  background: var(--primary-soft);
+  background: color-mix(in srgb, var(--health-accent) 28%, transparent);
   filter: blur(22px);
   pointer-events: none;
   animation: softGlow 4.5s ease-in-out infinite;
 }
 
-.financial-health.orange { border-color: var(--glass-border); }
-.financial-health.red { border-color: var(--glass-border); }
+.financial-health.lime { --health-accent: var(--primary); }
+.financial-health.orange { --health-accent: var(--warning); }
+.financial-health.red { --health-accent: var(--danger); }
 
 .health-top { display:flex; justify-content:space-between; gap:20px; align-items:flex-start; }
-.health-top h2 { margin:8px 0 0; font:500 1rem var(--font-mono); }
-.health-top h2 i { display:inline-block; width:8px; height:8px; margin-right:0.4rem; background:var(--primary); border-radius:50%; }
-.financial-health.orange .health-top h2 i { background:var(--primary); }
-.financial-health.red .health-top h2 i { background:var(--primary); }
-.financial-health > svg { color:var(--primary); }
-.financial-health.orange > svg { color:var(--primary); }
-.financial-health.red > svg { color:var(--primary); }
-.financial-health p { max-width:290px; margin:13px 0; color:var(--text-secondary); font-size:0.75rem; line-height:1.55; }
-.financial-health .text-link { display:inline-flex; align-items:center; gap:7px; padding:0; background:none; border:0; color:var(--primary); font:10px var(--font-mono); letter-spacing:0.12em; text-transform:uppercase; }
+.health-top h2 { margin:8px 0 0; font:600 1.05rem var(--font-sans); letter-spacing:-0.03em; }
+.health-top h2 i { display:inline-block; width:8px; height:8px; margin-right:0.4rem; background:var(--health-accent); border-radius:50%; }
+.financial-health > svg { color:var(--health-accent); }
+.financial-health p { max-width:290px; margin:13px 0; color:var(--text-secondary); font-size:0.8rem; line-height:1.55; }
+.financial-health .text-link { display:inline-flex; align-items:center; gap:7px; padding:0; background:none; border:0; color:var(--health-accent); font:500 12px var(--font-sans); letter-spacing:0; text-transform:none; }
 
-.quick-actions { display:flex; align-items:center; justify-content:space-between; gap:20px; padding:1rem 1.2rem; margin-bottom:0.9rem; border:1px solid var(--glass-border); border-radius:var(--radius-lg); background:var(--glass-surface); box-shadow:var(--glass-shadow); -webkit-backdrop-filter:blur(16px); backdrop-filter:blur(16px); }
-.quick-actions h2 { margin:6px 0 0; font:500 1rem var(--font-mono); }
+.quick-actions { display:flex; align-items:center; justify-content:space-between; gap:20px; padding:1rem 1.2rem; margin-bottom:0.9rem; border:1px solid var(--border); border-radius:var(--radius-lg); background:var(--surface-card); box-shadow:var(--shadow-sm); }
+.quick-actions h2 { margin:6px 0 0; font:600 1rem var(--font-sans); letter-spacing:-0.02em; }
 .quick-action-buttons { display:flex; flex-wrap:wrap; gap:8px; }
 .text-button { color:var(--text-primary); text-decoration:none; }
 .transaction-type-toggle { display:grid; grid-template-columns:1fr 1fr; gap:4px; padding:4px; background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:999px; }
@@ -52,15 +50,19 @@ body { padding-bottom: env(safe-area-inset-bottom); }
 .monthly-item { position:relative; }
 .monthly-bar { grid-column:2; display:block; height:6px; margin-top:3px; background:rgba(255,255,255,.08); border-radius:999px; overflow:hidden; }
 .monthly-bar b { display:block; height:100%; background:var(--primary); }
-.monthly-bar.orange-text b { background:var(--text-secondary); }
-.monthly-bar.red-text b { background:var(--text-secondary); }
+.monthly-bar.orange-text b { background:var(--warning); }
+.monthly-bar.red-text b { background:var(--danger); }
 .value-primary, .lime-text, .income-text { color:var(--value-primary)!important; }
-.value-neutral, .orange-text, .red-text { color:var(--value-neutral)!important; }
-.financial-health.orange, .financial-health.red { border-color:var(--glass-border); box-shadow:var(--glass-shadow), inset 3px 0 0 var(--primary); }
-.financial-health.orange .health-top h2 i, .financial-health.red .health-top h2 i, .financial-health.orange > svg, .financial-health.red > svg { color:var(--primary); background:var(--primary); }
-.status.orange { color:var(--primary); }
+.value-neutral { color:var(--value-neutral)!important; }
+.orange-text { color:var(--warning)!important; }
+.red-text { color:var(--danger)!important; }
+.financial-health.orange, .financial-health.red {
+  border-color: color-mix(in srgb, var(--health-accent) 32%, var(--glass-border));
+  box-shadow: var(--glass-shadow), inset 3px 0 0 var(--health-accent);
+}
+.status.orange { color:var(--warning); }
 .headline em { color:var(--primary); }
-.roast-card { border-color:var(--glass-border); background:var(--glass-surface); box-shadow:var(--glass-shadow); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); }
+.roast-card { border-color:var(--glass-border); background:var(--glass-surface); box-shadow:var(--glass-shadow); -webkit-backdrop-filter:blur(16px); backdrop-filter:blur(16px); }
 .roast-mark, .intensity b, .intensity strong { color:var(--primary); }
 .insight.orange, .insight.purple, .insight.red { border-color:var(--glass-border); }
 .type-pill.expense { color:var(--text-secondary); }
@@ -68,7 +70,7 @@ body { padding-bottom: env(safe-area-inset-bottom); }
 .d1 { background:var(--chart-2); }.d2 { background:var(--chart-3); }.d3 { background:var(--chart-4); }.d4 { background:var(--text-muted); }
 .monthly-item:nth-child(2) svg { color:var(--text-secondary); }
 .monthly-bar.value-primary b { background:var(--primary); }.monthly-bar.value-neutral b { background:var(--text-secondary); }
-.financial-summary .finance-card, .monthly-overview { background:var(--glass-surface); border-color:var(--glass-border); box-shadow:var(--glass-shadow); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); }
+.financial-summary .finance-card, .monthly-overview { background:var(--surface-card); border-color:var(--border); box-shadow:var(--shadow-sm); }
 .financial-summary .finance-card { min-height:150px; }
 .finance-card-top svg { color:var(--text-muted); }
 .finance-card:nth-child(1)::after, .finance-card:nth-child(2)::after, .finance-card:nth-child(4)::after { background:var(--primary); }
@@ -79,7 +81,7 @@ body { padding-bottom: env(safe-area-inset-bottom); }
 .dashboard-hero-copy { min-width:0; }
 .dashboard-hero h1 { max-width:680px; }
 .dashboard-hero .financial-health { align-self:flex-end; }
-.dashboard-hero + .quick-actions { box-shadow:var(--glass-shadow), 0 0 0 1px var(--primary-soft); }
+.dashboard-hero + .quick-actions { box-shadow:var(--shadow-sm); }
 .button, .icon-button, .card, .quick-actions { transition:transform .25s ease, box-shadow .25s ease, background-color .25s ease, border-color .25s ease, color .25s ease; }
 
 @keyframes softGlow { 0%, 100% { opacity:.5; transform:scale(.9); } 50% { opacity:1; transform:scale(1.05); } }
@@ -97,8 +99,8 @@ button, .button, .nav-link, .icon-button { -webkit-tap-highlight-color: transpar
 .score-ring { box-shadow:inset 0 0 30px var(--primary-soft); }
 .success-notice { color:var(--accent-dark); background:var(--primary-soft); border-color:color-mix(in srgb, var(--accent-primary) 28%, var(--border)); }
 .transaction-empty { background:radial-gradient(circle at 50% 35%, var(--primary-soft), transparent 55%), var(--surface); }
-.financial-health { box-shadow:var(--glass-shadow), inset 3px 0 0 var(--primary); }
-.mobile-bottom-nav .bottom-nav-link:last-child svg { color:#0b0d12; }
+.financial-health { box-shadow:var(--glass-shadow), inset 3px 0 0 var(--health-accent); }
+.mobile-bottom-nav .add-nav-action svg { color:#0b0d12; }
 .mobile-bottom-nav .add-nav-action { position:relative; display:flex; align-items:center; justify-content:center; gap:3px; min-width:48px; min-height:48px; color:#0b0d12; background:var(--accent-primary); border:1px solid color-mix(in srgb, var(--accent-bright) 55%, transparent); box-shadow:0 5px 18px color-mix(in srgb, var(--accent-primary) 25%, transparent); animation:add-idle 6s ease-in-out infinite; }
 .mobile-bottom-nav .add-nav-action svg { flex:none; width:18px; height:18px; color:#0b0d12; stroke-width:2.4; transform-origin:center; transition:transform 180ms ease; }
 .mobile-bottom-nav .add-nav-action:active { animation:none; transform:scale(.94); }
@@ -124,10 +126,10 @@ button, .button, .nav-link, .icon-button { -webkit-tap-highlight-color: transpar
 .orb-one { width:420px; height:420px; top:4%; left:8%; background:var(--accent-primary); animation:ambient-drift-one 24s ease-in-out infinite alternate; }
 .orb-two { width:330px; height:330px; top:38%; right:4%; background:var(--accent-soft); opacity:.13; filter:blur(88px); animation:ambient-drift-two 29s ease-in-out infinite alternate; }
 .orb-three { width:260px; height:260px; bottom:6%; left:42%; background:var(--text-secondary); opacity:.08; filter:blur(86px); animation:ambient-drift-three 21s ease-in-out infinite alternate; }
-.button.lime, .bottom-nav-link:last-child { background:var(--accent-primary); }
+.button.lime { background:var(--accent-primary); }
 .button.lime { box-shadow:0 8px 24px color-mix(in srgb, var(--accent-primary) 22%, transparent); }
 .button.lime:not(:disabled):hover { background:var(--accent-bright); box-shadow:0 10px 28px color-mix(in srgb, var(--accent-primary) 32%, transparent); }
-.nav-link.active, .nav-link:hover, .bottom-nav-link.active, .bottom-nav-link:hover { background:color-mix(in srgb, var(--accent-primary) 10%, transparent); }
+.nav-link.active, .nav-link:hover, .bottom-nav-link.active, .bottom-nav-link:hover { background:color-mix(in srgb, var(--accent-primary) 12%, transparent); color:var(--text-primary); }
 .auth-brand h1 em, .headline em, .roast-mark, .intensity b, .intensity strong { color:var(--accent-primary); }
 .auth-pulse i, .finance-card:after, .progress i, .monthly-bar b { background:var(--accent-primary); }
 .merchant-icon { color:var(--accent-primary); border-color:color-mix(in srgb, var(--accent-primary) 38%, transparent); }

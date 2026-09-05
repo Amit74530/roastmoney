@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { BrowserRouter, Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
-import { Activity, ArrowRight, BarChart3, Bell, Bolt, Check, ChevronLeft, ChevronRight, CircleDollarSign, Home, Lock, LogOut, Menu, Moon, Pencil, Plus, Search, Settings as SettingsIcon, Sparkles, SunMedium, Trash2, Trophy, UserRound, X } from 'lucide-react'
+import { Activity, ArrowRight, BarChart3, Bell, Bolt, Check, ChevronLeft, ChevronRight, CircleDollarSign, Flame, Home, Lock, LogOut, Menu, Moon, Pencil, Plus, Search, Settings as SettingsIcon, Sparkles, SunMedium, Trash2, Trophy, UserRound, X } from 'lucide-react'
 import { categories, demoData } from './data/demoData'
 import { supabase } from './lib/supabaseClient'
 import { fetchUserTransactions, createUserTransaction, updateUserTransaction, deleteUserTransaction } from './lib/transactionService'
@@ -17,7 +17,29 @@ import './App.css'
 import './ui-polish.css'
 
 const money = (value) => `₹${Math.round(value).toLocaleString('en-IN')}`
-const navItems = [['/dashboard', 'OVERVIEW', Home], ['/transactions', 'TRANSACTIONS', Activity], ['/analytics', 'ANALYTICS', BarChart3], ['/personality', 'PERSONALITY', Sparkles], ['/achievements', 'ACHIEVEMENTS', Trophy], ['/wrapped', 'WRAPPED', CircleDollarSign]]
+const pageTitles = {
+  '/dashboard': 'Home',
+  '/transactions': 'Activity',
+  '/analytics': 'Insights',
+  '/personality': 'Roast',
+  '/achievements': 'Achievements',
+  '/wrapped': 'Wrapped',
+  '/settings': 'Settings',
+}
+const desktopNav = [
+  ['/dashboard', 'Home', Home],
+  ['/transactions', 'Activity', Activity],
+  ['/analytics', 'Insights', BarChart3],
+  ['/personality', 'Roast', Flame],
+  ['/achievements', 'Achievements', Trophy],
+  ['/wrapped', 'Wrapped', CircleDollarSign],
+]
+const mobileNav = [
+  ['/dashboard', 'Home', Home],
+  ['/transactions', 'Activity', Activity],
+  ['/analytics', 'Insights', BarChart3],
+  ['/personality', 'Roast', Sparkles],
+]
 const iconFor = (category) => ({ Food: 'FO', Shopping: 'SH', Transport: 'TR', Subscriptions: 'SU', Entertainment: 'EN', Bills: 'BI', Other: 'OT' })[category] || 'OT'
 
 const getInitials = (name, fallback = 'AM') => {
@@ -135,7 +157,7 @@ function Shell({ children }) {
   const navigate = useNavigate(); const location = useLocation(); const user = getUser() || demoData.user; const [drawer, setDrawer] = useState(false)
   const [addNotice, setAddNotice] = useState(false); const [showAddHint, setShowAddHint] = useState(false)
   const [theme, setTheme] = useState(() => getPreferences().theme || 'system')
-  const title = navItems.find(([path]) => location.pathname === path)?.[1] || (location.pathname === '/settings' ? 'SETTINGS' : 'OVERVIEW')
+  const title = pageTitles[location.pathname] || 'Home'
 
   useEffect(() => {
     const resolvedTheme = theme === 'system' ? (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark') : theme
@@ -183,7 +205,71 @@ function Shell({ children }) {
 
   const themeIcon = theme === 'dark' ? <SunMedium size={18} /> : <Moon size={18} />
 
-  return <div className="shell"><div className={`sidebar-backdrop ${drawer ? 'open' : ''}`} onClick={() => setDrawer(false)} /><aside className={drawer ? 'sidebar open' : 'sidebar'}><div className="side-top"><Link to="/dashboard" className="brand"><BrandLogo /></Link><button className="icon-button close-drawer" aria-label="Close navigation" onClick={() => setDrawer(false)}><X size={18} /></button></div><nav aria-label="Primary navigation">{navItems.map(([path, label, Icon]) => <NavLink onClick={() => setDrawer(false)} className="nav-link" to={path} key={path}><Icon size={17} />{label}</NavLink>)}</nav><div className="side-bottom"><NavLink className="nav-link" to="/settings"><SettingsIcon size={17} />SETTINGS</NavLink><div className="profile"><div className="avatar">{user.initials}</div><div><strong>{user.name}</strong><small>{user.email || 'FREE PLAN'}</small></div><button className="icon-button" title="Log out" aria-label="Log out" onClick={handleSignOut}><LogOut size={16} /></button></div></div></aside><div className="main"><header className="topbar"><button className="icon-button menu-button" aria-label="Open navigation" onClick={() => setDrawer(true)}><Menu size={20} /></button><Link to="/dashboard" className="brand topbar-brand" aria-label="ROAST.MONEY home"><BrandLogo compact size="sm" /></Link><div><span className="crumb">ROAST.MONEY / {title}</span><h3>{title}</h3></div><div className="top-actions"><span className="date">{new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase()}</span><button className="icon-button theme-toggle" aria-label="Toggle theme" onClick={cycleTheme}>{themeIcon}</button><button className="icon-button" aria-label="Notifications"><Bell size={18} /></button><div className="avatar" aria-label={`Signed in as ${user.name}`}>{user.initials}</div></div></header><div className="page">{children}</div></div><nav className="mobile-bottom-nav" aria-label="Mobile navigation">{navItems.slice(0,5).map(([path, label, Icon]) => <NavLink className="bottom-nav-link" to={path} key={path}><Icon size={16} />{label === 'OVERVIEW' ? 'Home' : label === 'TRANSACTIONS' ? 'Tx' : label === 'ANALYTICS' ? 'Stats' : label === 'ACHIEVEMENTS' ? 'Wins' : 'Wrap'}</NavLink>)}<NavLink className="bottom-nav-link add-nav-action" to="/transactions" onClick={handleAddTap} aria-label="Add transaction"><Plus size={16} />Add</NavLink>{showAddHint && <span className="add-nav-hint" role="status">ADD YOUR NEXT MOVE <ArrowRight size={13} /></span>}</nav>{addNotice && <div className="add-welcome" role="status">READY TO MAKE A MONEY MOVE?</div>}</div>
+  return (
+    <div className="shell">
+      <div className={`sidebar-backdrop ${drawer ? 'open' : ''}`} onClick={() => setDrawer(false)} />
+      <aside className={drawer ? 'sidebar open' : 'sidebar'}>
+        <div className="side-top">
+          <Link to="/dashboard" className="brand"><BrandLogo /></Link>
+          <button className="icon-button close-drawer" aria-label="Close navigation" onClick={() => setDrawer(false)}><X size={18} /></button>
+        </div>
+        <nav aria-label="Primary navigation">
+          {desktopNav.map(([path, label, Icon]) => (
+            <NavLink onClick={() => setDrawer(false)} className="nav-link" to={path} key={path}>
+              <Icon size={17} />{label}
+            </NavLink>
+          ))}
+        </nav>
+        <div className="side-bottom">
+          <NavLink className="nav-link" to="/settings" onClick={() => setDrawer(false)}>
+            <SettingsIcon size={17} />Settings
+          </NavLink>
+          <div className="profile">
+            <div className="avatar">{user.initials}</div>
+            <div>
+              <strong>{user.name}</strong>
+              <small>{user.email || 'Free plan'}</small>
+            </div>
+            <button className="icon-button" title="Log out" aria-label="Log out" onClick={handleSignOut}><LogOut size={16} /></button>
+          </div>
+        </div>
+      </aside>
+      <div className="main">
+        <header className="topbar">
+          <button className="icon-button menu-button" aria-label="Open navigation" onClick={() => setDrawer(true)}><Menu size={20} /></button>
+          <Link to="/dashboard" className="brand topbar-brand" aria-label="ROAST.MONEY home"><BrandLogo compact size="sm" /></Link>
+          <div>
+            <span className="crumb">ROAST.MONEY / {title}</span>
+            <h3>{title}</h3>
+          </div>
+          <div className="top-actions">
+            <span className="date">{new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+            <button className="icon-button theme-toggle" aria-label="Toggle theme" onClick={cycleTheme}>{themeIcon}</button>
+            <button className="icon-button" aria-label="Notifications"><Bell size={18} /></button>
+            <div className="avatar" aria-label={`Signed in as ${user.name}`}>{user.initials}</div>
+          </div>
+        </header>
+        <div className="page">{children}</div>
+      </div>
+      <nav className="mobile-bottom-nav" aria-label="Mobile navigation">
+        {mobileNav.slice(0, 2).map(([path, label, Icon]) => (
+          <NavLink className="bottom-nav-link" to={path} key={path}>
+            <Icon size={18} />{label}
+          </NavLink>
+        ))}
+        <NavLink className="bottom-nav-link add-nav-action" to="/transactions" onClick={handleAddTap} aria-label="Add transaction">
+          <Plus size={20} />
+        </NavLink>
+        {mobileNav.slice(2).map(([path, label, Icon]) => (
+          <NavLink className="bottom-nav-link" to={path} key={path}>
+            <Icon size={18} />{label}
+          </NavLink>
+        ))}
+        {showAddHint && <span className="add-nav-hint" role="status">ADD YOUR NEXT MOVE <ArrowRight size={13} /></span>}
+      </nav>
+      {addNotice && <div className="add-welcome" role="status">READY TO MAKE A MONEY MOVE?</div>}
+    </div>
+  )
 }
 
 function Card({ children, className = '' }) { return <section className={`card ${className}`}>{children}</section> }
