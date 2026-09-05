@@ -1019,6 +1019,53 @@
 .orb-two { width: 260px; height: 260px; top: 42%; right: 4%; background: var(--accent-soft); opacity: 0.1; }
 .orb-three { width: 220px; height: 220px; bottom: 8%; left: 40%; background: var(--text-secondary); opacity: 0.06; }
 
+.roastscan-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+.roastscan-status { max-width: 720px; }
+.roastscan-status h2 { margin: 6px 0 8px; }
+.roastscan-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+}
+.roastscan-badge.ok { color: #07110c; background: var(--lime); border-color: transparent; }
+.roastscan-badge.warn { color: var(--muted); background: var(--surface); }
+.roastscan-preview-card { padding: 14px; margin-bottom: 14px; }
+.roastscan-preview {
+  display: block;
+  width: 100%;
+  max-height: min(70vh, 640px);
+  object-fit: contain;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.roastscan-preview-card figcaption {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  color: var(--dim);
+  font-size: 13px;
+}
+.roastscan-mime { margin-left: auto; font-family: var(--mono); }
+.roastscan-empty { margin-bottom: 14px; }
+.roastscan-actions { display: flex; gap: 8px; margin-top: 8px; }
+
+@media (max-width: 800px) {
+  .roastscan-card { flex-direction: column; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .page > * { animation: none; }
   .auth-pulse i { animation: none; }
