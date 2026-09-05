@@ -277,6 +277,16 @@
 .auth-switch a { color: var(--lime); }
 .error { color: var(--red); font-size: 13px; }
 .success { color: var(--health-ok); font-size: 13px; }
+.auth-loading {
+  min-height: 100dvh;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
+  padding: 32px;
+  text-align: center;
+}
+.auth-loading h1 { font-size: 28px; letter-spacing: -1px; }
 
 .shell { display: flex; min-height: 100dvh; }
 .sidebar {
@@ -1060,10 +1070,30 @@
 }
 .roastscan-mime { margin-left: auto; font-family: var(--mono); }
 .roastscan-empty { margin-bottom: 14px; }
-.roastscan-actions { display: flex; gap: 8px; margin-top: 8px; }
+.roastscan-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.roastscan-form-card { padding: 18px; margin-bottom: 14px; }
+.roastscan-banner, .roastscan-duplicate, .roastscan-saved {
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+.roastscan-duplicate { border-color: color-mix(in srgb, var(--health-warn) 45%, var(--border)); }
+.roastscan-saved {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  border-color: color-mix(in srgb, var(--lime) 40%, var(--border));
+}
+.roastscan-saved .roast-quote { margin: 6px 0 0; }
+.roastscan-preview-card figcaption { flex-wrap: wrap; }
 
 @media (max-width: 800px) {
   .roastscan-card { flex-direction: column; }
+  .roastscan-actions .button { flex: 1 1 140px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

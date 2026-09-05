@@ -1,8 +1,22 @@
 import { supabase } from './supabaseClient'
+import { localDateInputValue } from '../utils/localDate'
+
+const emptyToNull = (value) => {
+  const text = String(value ?? '').trim()
+  return text ? text : null
+}
 
 const toDateString = (value) => {
-  if (!value) return new Date().toISOString().slice(0, 10)
+  if (!value) return localDateInputValue()
   return String(value).slice(0, 10)
+}
+
+const toTimeString = (value) => {
+  const raw = String(value || '').trim()
+  if (!raw) return null
+  if (/^\d{2}:\d{2}$/.test(raw)) return raw
+  if (/^\d{2}:\d{2}:\d{2}/.test(raw)) return raw.slice(0, 5)
+  return null
 }
 
 const normalizeTransaction = (row = {}) => {
@@ -17,12 +31,18 @@ const normalizeTransaction = (row = {}) => {
     id: row.id,
     user_id: row.user_id || null,
     title,
+    merchant: String(row.merchant || title).trim() || title,
     amount,
     type,
     category: row.category || 'Other',
     transaction_date: toDateString(row.transaction_date || row.date || row.created_at),
+    time: toTimeString(row.transaction_time || row.time) || '',
     created_at: row.created_at || new Date().toISOString(),
     description,
+    payment_method: row.payment_method || '',
+    reference_id: row.reference_id || '',
+    source: row.source || 'manual',
+    scan_confidence: row.scan_confidence == null ? null : Number(row.scan_confidence),
   }
 }
 
@@ -33,7 +53,7 @@ const buildWritePayload = (payload) => {
   const amount = Number(payload.amount)
   const transactionDate = toDateString(payload.transaction_date || payload.date)
 
-  return {
+  const row = {
     title,
     amount,
     type,
@@ -41,6 +61,28 @@ const buildWritePayload = (payload) => {
     transaction_date: transactionDate,
     description: notes && notes !== title ? notes : null,
   }
+
+  if ('merchant' in payload || 'source' in payload) {
+    row.merchant = emptyToNull(payload.merchant) || title
+  }
+  if ('payment_method' in payload) {
+    row.payment_method = emptyToNull(payload.payment_method)
+  }
+  if ('reference_id' in payload) {
+    row.reference_id = emptyToNull(payload.reference_id)
+  }
+  if ('time' in payload || 'transaction_time' in payload) {
+    row.transaction_time = toTimeString(payload.transaction_time || payload.time)
+  }
+  if ('source' in payload) {
+    row.source = emptyToNull(payload.source) || 'manual'
+  }
+  if ('scan_confidence' in payload) {
+    const confidence = Number(payload.scan_confidence)
+    row.scan_confidence = Number.isFinite(confidence) ? confidence : null
+  }
+
+  return row
 }
 
 const requireReturnedRows = (data, action) => {
