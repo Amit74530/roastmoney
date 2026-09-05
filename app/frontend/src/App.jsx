@@ -28,7 +28,7 @@ const sidebarItems = [
 ]
 
 const pageTitles = {
-  '/dashboard': 'ROAST.MONEY',
+  '/dashboard': 'Home',
   '/transactions': 'Activity',
   '/analytics': 'Insights',
   '/personality': 'Roast',
@@ -278,8 +278,7 @@ function Shell({ children }) {
         <header className="topbar">
           <button className="icon-button menu-button" aria-label="Open navigation" onClick={() => setDrawer(true)}><Menu size={20} /></button>
           <Link to="/dashboard" className="brand topbar-brand" aria-label="ROAST.MONEY home"><BrandLogo compact size="sm" /></Link>
-          <div>
-            <span className="crumb">ROAST.MONEY / {title}</span>
+          <div className="topbar-title">
             <h3>{title}</h3>
           </div>
           <div className="top-actions">
