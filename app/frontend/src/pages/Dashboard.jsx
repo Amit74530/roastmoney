@@ -1,9 +1,17 @@
-import { Link } from 'react-router-dom'
+import { useState } from 'react'
 import FinancialSummary from '../components/FinancialSummary'
 import MonthlyOverview from '../components/MonthlyOverview'
 import RecentTransactions from '../components/RecentTransactions'
+import FinancialHealth from '../components/FinancialHealth'
+import QuickActions from '../components/QuickActions'
+import TransactionModal from '../components/TransactionModal'
+import { getUser } from '../utils/storage'
 
 export default function Dashboard({ transactions, onAdd }) {
-  const userName = 'AMIT'
-  return <><div className="page-intro"><div><p className="eyebrow">WEDNESDAY, 02 SEPTEMBER 2026</p><h1>GOOD EVENING, {userName}.</h1><p className="headline">Your wallet is feeling <em>slightly concerned.</em></p></div><Link to="/transactions" className="status orange"><i /> CONCERNED</Link></div><FinancialSummary transactions={transactions} /><MonthlyOverview transactions={transactions} /><RecentTransactions transactions={transactions} onAdd={onAdd} /></>
+  const [modalType, setModalType] = useState(null)
+  const [toast, setToast] = useState('')
+  const userName = (getUser()?.name || 'THERE').split(' ')[0].toUpperCase()
+  const hour = new Date().getHours()
+  const greeting = hour < 12 ? 'GOOD MORNING' : hour < 18 ? 'GOOD AFTERNOON' : 'GOOD EVENING'
+  return <><div className="page-intro"><div><p className="eyebrow">{new Date().toLocaleDateString('en-US', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }).toUpperCase()}</p><h1>{greeting}, {userName}.</h1><p className="headline">Your money has opinions. Today, they sound <em>{transactions.length ? 'slightly concerned.' : 'like a blank page.'}</em></p></div><FinancialHealth transactions={transactions} onAdd={setModalType} /></div><QuickActions onAdd={setModalType} /><FinancialSummary transactions={transactions} /><MonthlyOverview transactions={transactions} /><RecentTransactions transactions={transactions} onAdd={() => setModalType('expense')} />{toast && <div className="toast" role="status">TRANSACTION ADDED. THE EVIDENCE HAS BEEN LOGGED.</div>}{modalType && <TransactionModal type={modalType} onSave={async (payload) => { await onAdd(payload); setModalType(null); setToast('added'); window.setTimeout(() => setToast(''), 2600) }} onClose={() => setModalType(null)} />}</>
 }
