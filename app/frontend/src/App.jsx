@@ -11,7 +11,9 @@ import AnalyticsPage from './pages/Analytics'
 import PersonalityPage from './pages/Personality'
 import AchievementsPage from './pages/Achievements'
 import WrappedPage from './pages/Wrapped'
+import RoastScanPage from './pages/RoastScan'
 import TransactionManager from './components/TransactionManager'
+import RoastScanShareGate from './components/RoastScanShareGate'
 import BrandLogo from './components/BrandLogo'
 import './App.css'
 import './ui-polish.css'
@@ -33,6 +35,7 @@ const pageTitles = {
   '/achievements': 'Achievements',
   '/wrapped': 'Wrapped',
   '/settings': 'Settings',
+  '/roastscan': 'RoastScan',
 }
 
 const getInitials = (name, fallback = 'AM') => {
@@ -458,6 +461,7 @@ function App() {
 
   return (
     <BrowserRouter>
+      <RoastScanShareGate isAuthenticated={Boolean(session)} />
       <Routes>
         <Route path="/login" element={authReady && session ? <Navigate to="/dashboard" replace /> : <Auth mode="login" />} />
         <Route path="/signup" element={authReady && session ? <Navigate to="/dashboard" replace /> : <Auth mode="signup" />} />
@@ -470,6 +474,7 @@ function App() {
               <Route path="/personality" element={<PersonalityPage transactions={transactions} />} />
               <Route path="/achievements" element={<AchievementsPage transactions={transactions} />} />
               <Route path="/wrapped" element={<WrappedPage transactions={transactions} />} />
+              <Route path="/roastscan" element={<RoastScanPage />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
