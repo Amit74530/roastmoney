@@ -1,25 +1,53 @@
 import { supabase } from './supabaseClient'
 
+const toDateString = (value) => {
+  if (!value) return new Date().toISOString().slice(0, 10)
+  return String(value).slice(0, 10)
+}
+
 const normalizeTransaction = (row = {}) => {
   const type = row.type === 'income' ? 'income' : 'expense'
   const amount = Number(row.amount) || 0
-  const dateValue = row.transaction_date || row.date || row.created_at || new Date().toISOString()
-  const dateString = String(dateValue).slice(0, 10)
+  const explicitTitle = String(row.title || row.merchant || '').trim()
+  const storedDescription = String(row.description || '').trim()
+  const title = explicitTitle || storedDescription || 'Transaction'
+  const description = explicitTitle ? storedDescription : ''
 
   return {
     id: row.id,
     user_id: row.user_id || null,
-    type,
+    title,
     amount,
+    type,
     category: row.category || 'Other',
-    description: row.description || row.merchant || 'Transaction',
-    merchant: row.description || row.merchant || 'Transaction',
-    notes: row.notes || '',
-    date: dateString,
-    time: row.time || String(dateValue).slice(11, 16) || '00:00',
-    transaction_date: dateString,
+    transaction_date: toDateString(row.transaction_date || row.date || row.created_at),
     created_at: row.created_at || new Date().toISOString(),
+    description,
   }
+}
+
+const buildWritePayload = (payload) => {
+  const title = String(payload.title || payload.merchant || '').trim() || 'Transaction'
+  const notes = String(payload.notes ?? payload.description ?? '').trim()
+  const type = payload.type === 'income' ? 'income' : 'expense'
+  const amount = Number(payload.amount)
+  const transactionDate = toDateString(payload.transaction_date || payload.date)
+
+  return {
+    title,
+    amount,
+    type,
+    category: payload.category || 'Other',
+    transaction_date: transactionDate,
+    description: notes && notes !== title ? notes : null,
+  }
+}
+
+const requireReturnedRows = (data, action) => {
+  if (!Array.isArray(data) || data.length === 0) {
+    throw new Error(`Supabase returned no rows after ${action}. The transaction was not saved.`)
+  }
+  return data.map(normalizeTransaction)
 }
 
 export async function fetchUserTransactions(userId) {
@@ -52,18 +80,10 @@ export async function createUserTransaction(userId, payload) {
     throw new Error('Transaction amount must be greater than zero.')
   }
 
-  const type = payload.type === 'income' ? 'income' : 'expense'
-  const dateValue = payload.transaction_date || payload.date || new Date().toISOString()
-  const transactionDate = String(dateValue).slice(0, 10)
-
   const row = {
-    user_id: userId,
-    type,
+    ...buildWritePayload(payload),
     amount: nextAmount,
-    category: payload.category || 'Other',
-    description: payload.description || payload.merchant || 'Transaction',
-    transaction_date: transactionDate,
-    created_at: new Date().toISOString(),
+    user_id: userId,
   }
 
   const { data, error } = await supabase
@@ -76,7 +96,7 @@ export async function createUserTransaction(userId, payload) {
     throw error
   }
 
-  return (data || []).map(normalizeTransaction)
+  return requireReturnedRows(data, 'create')
 }
 
 export async function updateUserTransaction(userId, transactionId, payload) {
@@ -89,13 +109,9 @@ export async function updateUserTransaction(userId, transactionId, payload) {
     throw new Error('Transaction amount must be greater than zero.')
   }
 
-  const dateValue = payload.transaction_date || payload.date
   const row = {
-    type: payload.type === 'income' ? 'income' : 'expense',
+    ...buildWritePayload(payload),
     amount: nextAmount,
-    category: payload.category || 'Other',
-    description: payload.description || payload.merchant || 'Transaction',
-    transaction_date: String(dateValue).slice(0, 10),
   }
 
   const { data, error } = await supabase
@@ -110,7 +126,7 @@ export async function updateUserTransaction(userId, transactionId, payload) {
     throw error
   }
 
-  return (data || []).map(normalizeTransaction)
+  return requireReturnedRows(data, 'update')
 }
 
 export async function deleteUserTransaction(userId, transactionId) {

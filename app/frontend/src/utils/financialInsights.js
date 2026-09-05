@@ -17,7 +17,12 @@ export const getSpendingPersonality = (transactions) => {
   const expenses = expenseTransactions(transactions)
   if (!expenses.length) return { title: 'THE FINANCIAL MYSTERY', description: 'No spending evidence yet. A surprisingly clean record.', impulse: 0, discipline: 100, chaos: 0 }
   const smallPurchases = expenses.filter((transaction) => transactionAmount(transaction) < 500).length
-  const lateNight = expenses.filter((transaction) => Number((transaction.time || '00:00').slice(0, 2)) >= 22 || Number((transaction.time || '00:00').slice(0, 2)) < 5).length
+  const lateNight = expenses.filter((transaction) => {
+    const time = transaction.time
+    if (!time) return false
+    const hour = Number(String(time).slice(0, 2))
+    return Number.isFinite(hour) && (hour >= 22 || hour < 5)
+  }).length
   const total = expenses.reduce((sum, transaction) => sum + transactionAmount(transaction), 0)
   const impulse = Math.min(99, Math.round((smallPurchases / expenses.length) * 55 + (lateNight / expenses.length) * 45))
   const discipline = Math.max(1, Math.min(99, Math.round((1 - total / Math.max(calculateFinancialSummary(transactions).totalIncome || total, total)) * 100)))
@@ -35,7 +40,7 @@ export const getAchievementData = (transactions) => {
     { title: 'FIRST TRANSACTION', description: 'You officially started tracking your financial chaos.', unlocked: transactions.length >= 1, progress: `${Math.min(transactions.length, 1)} / 1` },
     { title: 'EXPENSE TRACKER', description: 'Logged 10 transactions. The evidence is accumulating.', unlocked: transactions.length >= 10, progress: `${Math.min(transactions.length, 10)} / 10` },
     { title: 'SAVINGS STARTER', description: 'Income is currently ahead of expenses.', unlocked: summary.totalBalance > 0, progress: summary.totalBalance > 0 ? 'UNLOCKED' : 'KEEP GOING' },
-    { title: 'CONSISTENCY MACHINE', description: 'Tracked finances across multiple calendar months.', unlocked: new Set(transactions.map((transaction) => (transaction.date || '').slice(0, 7))).size >= 2, progress: `${new Set(transactions.map((transaction) => (transaction.date || '').slice(0, 7))).size} months` },
+    { title: 'CONSISTENCY MACHINE', description: 'Tracked finances across multiple calendar months.', unlocked: new Set(transactions.map((transaction) => (transaction.transaction_date || '').slice(0, 7))).size >= 2, progress: `${new Set(transactions.map((transaction) => (transaction.transaction_date || '').slice(0, 7))).size} months` },
     { title: 'CATEGORY CONNOISSEUR', description: 'Logged spending in three different categories.', unlocked: new Set(expenses.map((transaction) => transaction.category)).size >= 3, progress: `${new Set(expenses.map((transaction) => transaction.category)).size} categories` },
   ]
 }

@@ -4,7 +4,7 @@ import { Activity, ArrowRight, BarChart3, Bell, Bolt, Check, ChevronLeft, Chevro
 import { categories, demoData } from './data/demoData'
 import { supabase } from './lib/supabaseClient'
 import { fetchUserTransactions, createUserTransaction, updateUserTransaction, deleteUserTransaction } from './lib/transactionService'
-import { clearUser, getPreferences, getTransactions, getUser, savePreferences, saveTransactions, saveUser } from './utils/storage'
+import { clearUser, getPreferences, getUser, savePreferences, saveUser } from './utils/storage'
 import DashboardPage from './pages/Dashboard'
 import AnalyticsPage from './pages/Analytics'
 import PersonalityPage from './pages/Personality'
@@ -314,9 +314,14 @@ function App() {
   const handleUpdateTransaction = async (transactionId, payload) => {
     if (!session?.user) return
 
-    const updated = await updateUserTransaction(session.user.id, transactionId, payload)
-    setTransactions((current) => current.map((item) => updated[0]?.id === item.id ? updated[0] : item))
-    return updated
+    try {
+      const updated = await updateUserTransaction(session.user.id, transactionId, payload)
+      setTransactions((current) => current.map((item) => item.id === transactionId ? updated[0] : item))
+      return updated
+    } catch (error) {
+      console.error('[App] updateUserTransaction failed:', error)
+      throw error
+    }
   }
 
   return <BrowserRouter><Routes><Route path="/login" element={authReady && session ? <Navigate to="/dashboard" replace /> : <Auth mode="login" />} /><Route path="/signup" element={authReady && session ? <Navigate to="/dashboard" replace /> : <Auth mode="signup" />} /><Route path="*" element={<Protected isAuthenticated={Boolean(session)} authReady={authReady}><Routes><Route path="/dashboard" element={<DashboardPage transactions={transactions} onAdd={handleAddTransaction} />} /><Route path="/transactions" element={<TransactionManager transactions={transactions} setTransactions={setTransactions} loading={transactionsLoading} fetchError={transactionsError} onCreateTransaction={handleAddTransaction} onUpdateTransaction={handleUpdateTransaction} onDeleteTransaction={handleDeleteTransaction} />} /><Route path="/analytics" element={<AnalyticsPage transactions={transactions} />} /><Route path="/personality" element={<PersonalityPage transactions={transactions} />} /><Route path="/achievements" element={<AchievementsPage transactions={transactions} />} /><Route path="/wrapped" element={<WrappedPage transactions={transactions} />} /><Route path="/settings" element={<Settings />} /><Route path="*" element={<Navigate to="/dashboard" replace />} /></Routes></Protected>} /></Routes></BrowserRouter>

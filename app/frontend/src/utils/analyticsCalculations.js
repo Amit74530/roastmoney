@@ -1,4 +1,4 @@
-import { calculateFinancialSummary, transactionAmount, transactionIsIncome } from './financialCalculations'
+import { calculateFinancialSummary, transactionAmount, transactionCalendarDate, transactionIsIncome } from './financialCalculations'
 
 export const timeFilters = [
   { value: 'month', label: 'THIS MONTH', months: 1 },
@@ -7,26 +7,34 @@ export const timeFilters = [
   { value: 'all', label: 'ALL TIME', months: null },
 ]
 
-const transactionDate = (transaction) => new Date(`${transaction.date}T${transaction.time || '00:00'}`)
+const startOfDay = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate())
 
 export const filterTransactionsByTime = (transactions, filter, referenceDate = new Date()) => {
   const selected = timeFilters.find((item) => item.value === filter) || timeFilters[3]
   if (selected.months === null) return transactions
   const start = new Date(referenceDate.getFullYear(), referenceDate.getMonth() - selected.months + 1, 1)
-  return transactions.filter((transaction) => transactionDate(transaction) >= start && transactionDate(transaction) <= referenceDate)
+  const end = startOfDay(referenceDate)
+  return transactions.filter((transaction) => {
+    const date = transactionCalendarDate(transaction)
+    return date && date >= start && date <= end
+  })
 }
 
 export const getPreviousPeriodTransactions = (transactions, filter, referenceDate = new Date()) => {
   const selected = timeFilters.find((item) => item.value === filter)
   if (!selected?.months) return []
-  const end = new Date(referenceDate.getFullYear(), referenceDate.getMonth() - selected.months + 1, 0, 23, 59, 59)
+  const end = new Date(referenceDate.getFullYear(), referenceDate.getMonth() - selected.months + 1, 0)
   const start = new Date(end.getFullYear(), end.getMonth() - selected.months + 1, 1)
-  return transactions.filter((transaction) => transactionDate(transaction) >= start && transactionDate(transaction) <= end)
+  return transactions.filter((transaction) => {
+    const date = transactionCalendarDate(transaction)
+    return date && date >= start && date <= end
+  })
 }
 
 export const buildIncomeExpenseTrend = (transactions) => {
   const grouped = transactions.reduce((result, transaction) => {
-    const date = transactionDate(transaction)
+    const date = transactionCalendarDate(transaction)
+    if (!date) return result
     const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
     result[key] ||= { key, label: date.toLocaleString('en-US', { month: 'short' }), income: 0, expenses: 0 }
     result[key][transactionIsIncome(transaction) ? 'income' : 'expenses'] += transactionAmount(transaction)
