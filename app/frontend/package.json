@@ -8,6 +8,8 @@
     "build": "vite build",
     "cap:sync": "npm run build && cap sync android",
     "cap:open": "cap open android",
+    "cap:release:apk": "npm run cap:sync && cd android && ./gradlew assembleRelease",
+    "cap:release:aab": "npm run cap:sync && cd android && ./gradlew bundleRelease",
     "lint": "oxlint",
     "preview": "vite preview"
   },
