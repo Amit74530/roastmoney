@@ -8,7 +8,6 @@ import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Build;
 import android.provider.OpenableColumns;
-import android.util.Base64;
 import android.webkit.MimeTypeMap;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -32,12 +31,32 @@ import java.util.UUID;
 public class ShareReceiverPlugin extends Plugin {
 
     private static final String EVENT_SHARE_RECEIVED = "shareReceived";
+    private static final String HANDLED_EXTRA = "roastscan_handled";
     private static final long MAX_BYTES = 25L * 1024L * 1024L;
+    private static final int MAX_UPLOAD_BYTES = 700_000;
 
     private JSObject pendingShare;
 
     @Override
+    protected void handleOnStart() {
+        if (getActivity() != null) {
+            handleLaunchIntent(getActivity().getIntent());
+        }
+    }
+
+    @Override
     protected void handleOnNewIntent(Intent intent) {
+        handleLaunchIntent(intent);
+    }
+
+    private void handleLaunchIntent(Intent intent) {
+        if (intent == null || !Intent.ACTION_SEND.equals(intent.getAction())) {
+            return;
+        }
+        if (intent.getBooleanExtra(HANDLED_EXTRA, false)) {
+            return;
+        }
+        intent.putExtra(HANDLED_EXTRA, true);
         handleShareIntent(intent);
     }
 
@@ -81,11 +100,17 @@ public class ShareReceiverPlugin extends Plugin {
                     return;
                 }
 
+                File uploadFile = new File(file.getParentFile(), pending.getString("id") + "-upload.jpg");
+                try (FileOutputStream out = new FileOutputStream(uploadFile)) {
+                    out.write(jpeg);
+                }
+
                 JSObject result = new JSObject();
                 result.put("id", pending.getString("id"));
+                result.put("received", true);
                 result.put("mimeType", "image/jpeg");
                 result.put("fileName", pending.getString("fileName"));
-                result.put("imageBase64", Base64.encodeToString(jpeg, Base64.NO_WRAP));
+                result.put("path", uploadFile.getAbsolutePath());
                 call.resolve(result);
             } catch (Exception exception) {
                 call.reject("The shared image could not be prepared for scanning.");
@@ -242,16 +267,28 @@ public class ShareReceiverPlugin extends Plugin {
             return null;
         }
 
+        Bitmap working = bitmap;
         try {
             int quality = 88;
-            byte[] data = encodeJpeg(bitmap, quality);
-            while (data != null && data.length > 1_200_000 && quality > 70) {
-                quality -= 6;
-                data = encodeJpeg(bitmap, quality);
+            byte[] data = encodeJpeg(working, quality);
+            while (data != null && data.length > MAX_UPLOAD_BYTES && quality > 62) {
+                quality -= 8;
+                data = encodeJpeg(working, quality);
+            }
+            if (data != null && data.length > MAX_UPLOAD_BYTES) {
+                float scale = (float) Math.min(0.85, Math.sqrt((double) MAX_UPLOAD_BYTES / data.length));
+                int width = Math.max(1, Math.round(working.getWidth() * scale));
+                int height = Math.max(1, Math.round(working.getHeight() * scale));
+                Bitmap smaller = Bitmap.createScaledBitmap(working, width, height, true);
+                if (smaller != working) {
+                    working.recycle();
+                    working = smaller;
+                }
+                data = encodeJpeg(working, 75);
             }
             return data;
         } finally {
-            bitmap.recycle();
+            working.recycle();
         }
     }
 

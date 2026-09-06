@@ -21,5 +21,5 @@ export function toDisplayableShare(payload) {
 }
 
 export function isNativeShareReceiverAvailable() {
-  return Capacitor.isNativePlatform() && Capacitor.isPluginAvailable('ShareReceiver')
+  return Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android'
 }
