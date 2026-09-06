@@ -19,13 +19,15 @@ This only **adds nullable columns** to `public.transactions`:
 
 Existing CRUD keeps working if these columns are absent, as long as the client does not send them. RoastScan save **requires** the migration.
 
-## 2. Deploy the Edge Function
+## 2. Deploy or update the Edge Function
+
+The extractor must be redeployed after code changes:
 
 ```bash
 supabase functions deploy roastscan-extract
 ```
 
-`verify_jwt` is enabled in `supabase/config.toml`.
+`verify_jwt` is enabled in `supabase/config.toml`. The function uses `OPENAI_API_KEY` only on the server.
 
 ## 3. Set secrets (dashboard or CLI)
 

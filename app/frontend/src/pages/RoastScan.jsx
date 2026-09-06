@@ -1,64 +1,27 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Check, ImageUp, ScanSearch } from 'lucide-react'
-import { Capacitor } from '@capacitor/core'
+import { ArrowLeft, Check, Pencil, ScanSearch } from 'lucide-react'
 import { ShareReceiver, isNativeShareReceiverAvailable, toDisplayableShare } from '../plugins/shareReceiver'
-import { extractRoastScanImage } from '../lib/roastscanService'
+import { extractRoastScanImage, imageSourceToUpload } from '../lib/roastscanService'
+import { confidenceCopy, emptyForm, mapExtractionToForm } from '../lib/roastscanMapping'
 import { findLikelyDuplicates } from '../lib/duplicateTransactions'
 import { categoriesForType, paymentMethods } from '../lib/transactionCategories'
-import { localDateInputValue } from '../utils/localDate'
 
-const emptyShare = {
-  status: 'loading',
-  share: null,
-}
-
-const emptyForm = () => ({
-  title: '',
-  merchant: '',
-  amount: '',
-  type: 'expense',
-  category: 'Food',
-  transaction_date: localDateInputValue(),
-  time: '',
-  payment_method: 'UPI',
-  reference_id: '',
-  description: '',
-})
-
-const confidenceLabel = (value) => {
-  if (value >= 0.8) return 'High'
-  if (value >= 0.55) return 'Medium'
-  return 'Low'
-}
-
-function formFromExtraction(extraction) {
-  const type = extraction?.type === 'income' ? 'income' : 'expense'
-  const categories = categoriesForType(type)
-  const category = categories.includes(extraction?.category) ? extraction.category : 'Other'
-  return {
-    ...emptyForm(),
-    title: extraction?.title || extraction?.merchant || '',
-    merchant: extraction?.merchant || extraction?.title || '',
-    amount: extraction?.amount == null ? '' : String(extraction.amount),
-    type,
-    category,
-    transaction_date: extraction?.date || localDateInputValue(),
-    time: extraction?.time || '',
-    payment_method: paymentMethods.includes(extraction?.payment_method) ? extraction.payment_method : 'Other',
-    reference_id: extraction?.reference_id || '',
-    description: extraction?.notes || '',
-  }
+const money = (value) => {
+  const amount = Number(value)
+  if (!Number.isFinite(amount) || amount <= 0) return '₹—'
+  return `₹${amount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
 }
 
 export default function RoastScan({ transactions = [], onSave }) {
   const location = useLocation()
   const navigate = useNavigate()
-  const [shareState, setShareState] = useState(emptyShare)
+  const [shareState, setShareState] = useState({ status: 'loading', share: null })
   const [extractStatus, setExtractStatus] = useState('idle')
   const [extractError, setExtractError] = useState('')
   const [extraction, setExtraction] = useState(null)
   const [form, setForm] = useState(emptyForm)
+  const [editing, setEditing] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [saving, setSaving] = useState(false)
   const [duplicates, setDuplicates] = useState([])
@@ -67,18 +30,18 @@ export default function RoastScan({ transactions = [], onSave }) {
   const [saved, setSaved] = useState(false)
 
   const share = shareState.share
-  const received = Boolean(share?.received && share?.webPath)
-  const categories = categoriesForType(form.type)
-  const confidence = Number(extraction?.confidence)
-  const lowConfidence = !extraction || extraction.unclear || !Number.isFinite(confidence) || confidence < 0.55
+  const received = Boolean(share?.received && (share.webPath || share.path))
+  const categories = categoriesForType(form.type || 'expense')
+  const confidence = confidenceCopy(extraction)
 
   useEffect(() => {
     let active = true
-    setShareState(emptyShare)
+    setShareState({ status: 'loading', share: null })
     setExtractStatus('idle')
     setExtractError('')
     setExtraction(null)
     setForm(emptyForm())
+    setEditing(false)
     setSaveError('')
     setDuplicates([])
     setConfirmDuplicate(false)
@@ -90,11 +53,7 @@ export default function RoastScan({ transactions = [], onSave }) {
         if (active) {
           setShareState({
             status: 'unavailable',
-            share: {
-              received: false,
-              error: 'unavailable',
-              message: 'Share a payment screenshot to the Android app to start RoastScan.',
-            },
+            share: { received: false, message: 'Share a payment screenshot to RoastMoney on Android to start RoastScan.' },
           })
         }
         return
@@ -109,22 +68,14 @@ export default function RoastScan({ transactions = [], onSave }) {
         }
         setShareState({
           status: 'empty',
-          share: {
-            received: false,
-            error: 'missing_stream',
-            message: 'No shared image is waiting. Share a payment screenshot to ROAST.MONEY.',
-          },
+          share: { received: false, message: 'No shared image is waiting. Share a payment screenshot to RoastMoney.' },
         })
       } catch (error) {
         console.error('[RoastScan] Failed to read pending share:', error)
         if (active) {
           setShareState({
             status: 'error',
-            share: {
-              received: false,
-              error: 'unreadable',
-              message: 'The shared image could not be opened.',
-            },
+            share: { received: false, message: 'The shared image could not be opened.' },
           })
         }
       }
@@ -142,20 +93,30 @@ export default function RoastScan({ transactions = [], onSave }) {
     setRoast(null)
     setConfirmDuplicate(false)
     setSaveError('')
+    setEditing(false)
     try {
-      const upload = await ShareReceiver.readPendingShareForUpload()
-      const result = await extractRoastScanImage({
-        imageBase64: upload.imageBase64,
-        mimeType: upload.mimeType || 'image/jpeg',
-      })
+      let prepared
+      try {
+        const upload = await ShareReceiver.readPendingShareForUpload()
+        prepared = await imageSourceToUpload({
+          imageBase64: upload?.imageBase64,
+          mimeType: upload?.mimeType,
+        })
+      } catch (nativeError) {
+        console.warn('[RoastScan] Native JPEG copy unavailable, using preview fetch.', nativeError)
+        prepared = await imageSourceToUpload({ webPath: share.webPath })
+      }
+      const result = await extractRoastScanImage(prepared)
       setExtraction(result)
-      setForm(formFromExtraction(result))
+      setForm(mapExtractionToForm(result))
       setExtractStatus('ready')
+      setEditing(!(result?.merchant && result?.amount))
     } catch (error) {
       console.error('[RoastScan] extract failed:', error)
       setExtraction(null)
       setForm(emptyForm())
       setExtractStatus('fallback')
+      setEditing(true)
       setExtractError(error?.message || 'RoastScan could not read that screenshot. Enter the details manually.')
     }
   }
@@ -164,14 +125,13 @@ export default function RoastScan({ transactions = [], onSave }) {
     if (shareState.status === 'ready' && shareState.share?.received) {
       runExtract()
     }
-    // Intentionally only when a new share payload arrives.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shareState.status, shareState.share?.id])
 
   const update = (key, value) => {
     setForm((current) => {
       if (key === 'type') {
-        return { ...current, type: value, category: value === 'income' ? 'Salary' : 'Food' }
+        return { ...current, type: value, category: '' }
       }
       return { ...current, [key]: value }
     })
@@ -181,23 +141,27 @@ export default function RoastScan({ transactions = [], onSave }) {
     title: (form.title || form.merchant).trim(),
     merchant: (form.merchant || form.title).trim(),
     amount: Number(form.amount),
-    type: form.type,
-    category: form.category,
+    type: form.type === 'income' ? 'income' : 'expense',
+    category: form.category || 'Other',
     transaction_date: form.transaction_date,
     time: form.time,
     payment_method: form.payment_method,
-    reference_id: form.reference_id.trim(),
-    description: form.description.trim(),
+    reference_id: (form.reference_id || '').trim(),
+    description: (form.description || '').trim(),
     source: 'roastscan',
-    scan_confidence: Number.isFinite(confidence) ? confidence : null,
+    scan_confidence: Number.isFinite(Number(extraction?.confidence)) ? Number(extraction.confidence) : null,
   })
 
-  const likelyDuplicates = useMemo(() => findLikelyDuplicates(transactions, payloadFromForm()), [transactions, form])
+  const likelyDuplicates = useMemo(
+    () => findLikelyDuplicates(transactions, payloadFromForm()),
+    [transactions, form],
+  )
 
   const saveTransaction = async () => {
     const payload = payloadFromForm()
     if (!payload.title || !payload.transaction_date || !Number.isFinite(payload.amount) || payload.amount <= 0) {
       setSaveError('Enter a merchant, date, and amount greater than zero before saving.')
+      setEditing(true)
       return
     }
     if (!onSave) {
@@ -211,9 +175,7 @@ export default function RoastScan({ transactions = [], onSave }) {
       setRoast(result?.roast || null)
       setSaved(true)
       setConfirmDuplicate(false)
-      if (isNativeShareReceiverAvailable()) {
-        await ShareReceiver.clearPendingShare()
-      }
+      if (isNativeShareReceiverAvailable()) await ShareReceiver.clearPendingShare()
     } catch (error) {
       setSaveError(error?.message || 'The transaction was not saved.')
     } finally {
@@ -231,132 +193,124 @@ export default function RoastScan({ transactions = [], onSave }) {
     await saveTransaction()
   }
 
-  const native = Capacitor.isNativePlatform()
+  const scanning = extractStatus === 'working'
+  const ready = extractStatus === 'ready' || extractStatus === 'fallback'
 
   return (
-    <>
-      <div className="page-intro compact-intro">
-        <div>
-          <p className="eyebrow">RoastScan / phase 2</p>
-          <h1>Review the extracted payment.</h1>
-          <p className="lead">Nothing is saved until you confirm. Low-confidence reads stay editable.</p>
-        </div>
-      </div>
-
-      <section className="card roastscan-card">
-        <div className="roastscan-status">
-          <span className="eyebrow">{received ? 'Inbound screenshot' : 'Share status'}</span>
-          <h2>
-            {extractStatus === 'working'
-              ? 'Reading the screenshot…'
-              : received
-                ? (lowConfidence ? 'Check these fields before saving.' : 'Extraction ready for review.')
-                : share?.message || 'Waiting for a shared image.'}
-          </h2>
-          <p>
-            {received
-              ? 'The image is sent to a server-side vision function. The AI key never ships in the app.'
-              : native
-                ? 'Share an image from another app and choose ROAST.MONEY.'
-                : 'Open this flow from the installed Android app to receive a shared screenshot.'}
-          </p>
-        </div>
-        <div className={`roastscan-badge ${received && extractStatus === 'ready' && !lowConfidence ? 'ok' : 'warn'}`}>
-          <ScanSearch size={18} />
-          {extractStatus === 'working'
-            ? 'Extracting'
-            : extractStatus === 'ready'
-              ? `${confidenceLabel(confidence)} · ${Math.round((confidence || 0) * 100)}%`
-              : received
-                ? 'Manual review'
-                : 'No extractable image'}
-        </div>
-      </section>
-
-      {received ? (
-        <figure className="card roastscan-preview-card">
-          <img className="roastscan-preview" src={share.webPath} alt={share.fileName || 'Shared payment screenshot'} />
-          <figcaption>
-            <ImageUp size={14} />
-            <span>{share.fileName}</span>
-            {share.mimeType ? <span className="roastscan-mime">{share.mimeType}</span> : null}
-          </figcaption>
-        </figure>
-      ) : shareState.status !== 'loading' ? (
+    <div className="roastscan">
+      {!received && shareState.status !== 'loading' && (
         <section className="card roastscan-empty">
-          <p className="error">{share?.message || 'Unsupported or unreadable shared content.'}</p>
+          <ScanSearch size={22} />
+          <h1>Waiting for a screenshot.</h1>
+          <p>{share?.message || 'Share a payment screenshot and choose RoastMoney.'}</p>
+          <Link className="button outline" to="/dashboard"><ArrowLeft size={16} /> Back</Link>
         </section>
-      ) : null}
+      )}
 
       {received && (
-        <section className="card roastscan-form-card">
-          {(extractError || lowConfidence && extractStatus !== 'working') && (
-            <p className="roastscan-banner">{extractError || 'This screenshot was unclear. Edit the fields or fill them in yourself.'}</p>
+        <form className="roastscan-layout" onSubmit={handleSave}>
+          <section className="card roastscan-hero">
+            {share.webPath && (
+              <figure className="roastscan-thumb">
+                <img src={share.webPath} alt="Shared payment screenshot" />
+              </figure>
+            )}
+            <div className="roastscan-hero-copy">
+              <p className="eyebrow">{scanning ? 'Analyzing screenshot' : saved ? 'Saved' : 'Payment scan'}</p>
+              <strong className="roastscan-amount">{scanning ? 'Reading…' : money(form.amount)}</strong>
+              <p className="roastscan-merchant">{form.merchant || (scanning ? 'Looking for the payee' : 'Merchant not found')}</p>
+              <span className={`roastscan-confidence ${confidence.tone}`}>{confidence.label}</span>
+            </div>
+          </section>
+
+          {scanning && (
+            <section className="card roastscan-status-card" role="status">
+              <p>ROAST.MONEY is reading merchant, amount, date, and reference from the screenshot. Nothing is saved yet.</p>
+            </section>
           )}
-          <form className="modal-form roastscan-form" onSubmit={handleSave}>
-            <div className="transaction-type-toggle">
-              <button type="button" className={form.type === 'income' ? 'active' : ''} onClick={() => update('type', 'income')}>Income</button>
-              <button type="button" className={form.type === 'expense' ? 'active' : ''} onClick={() => update('type', 'expense')}>Expense</button>
-            </div>
-            <label>Merchant / title<input value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value, merchant: event.target.value }))} placeholder="Payee or merchant" /></label>
-            <label>Amount (₹)<input required min="0" step="0.01" type="number" value={form.amount} onChange={(event) => update('amount', event.target.value)} /></label>
-            <div className="form-row">
-              <label>Category
-                <select value={form.category} onChange={(event) => update('category', event.target.value)}>
-                  {categories.map((category) => <option key={category}>{category}</option>)}
-                </select>
-              </label>
-              <label>Payment method
-                <select value={form.payment_method} onChange={(event) => update('payment_method', event.target.value)}>
-                  {paymentMethods.map((method) => <option key={method}>{method}</option>)}
-                </select>
-              </label>
-            </div>
-            <div className="form-row">
-              <label>Date<input required type="date" value={form.transaction_date} onChange={(event) => update('transaction_date', event.target.value)} /></label>
-              <label>Time <span className="optional">optional</span><input type="time" value={form.time} onChange={(event) => update('time', event.target.value)} /></label>
-            </div>
-            <label>Reference / UTR <span className="optional">optional</span><input value={form.reference_id} onChange={(event) => update('reference_id', event.target.value)} placeholder="UPI or bank reference" /></label>
-            <label>Notes <span className="optional">optional</span><textarea value={form.description} onChange={(event) => update('description', event.target.value)} placeholder="Anything the screenshot did not make obvious" /></label>
-            {saveError && <p className="error">{saveError}</p>}
-            {confirmDuplicate && duplicates.length > 0 && (
-              <div className="roastscan-duplicate" role="status">
-                <strong>Possible duplicate</strong>
-                <p>{duplicates[0].title} · ₹{Math.round(Number(duplicates[0].amount) || 0)} on {duplicates[0].transaction_date}. Save anyway only if this is a new payment.</p>
-              </div>
-            )}
-            {saved && (
-              <div className="roastscan-saved" role="status">
-                <Check size={16} />
-                <div>
-                  <strong>Saved to your ledger.</strong>
-                  {roast?.text ? <p className="roast-quote">{roast.text}</p> : <p>No roast this time — income stays un-roasted.</p>}
-                </div>
-              </div>
-            )}
-            <div className="modal-actions roastscan-actions">
-              <button type="button" className="button outline" onClick={() => navigate('/dashboard')}><ArrowLeft size={16} /> Home</button>
-              {received && extractStatus !== 'working' && !saved && (
-                <button type="button" className="button outline" onClick={runExtract} disabled={extractStatus === 'working'}>Retry scan</button>
+
+          {extractError && <p className="roastscan-banner">{extractError}</p>}
+
+          {ready && !saved && (
+            <>
+              {!editing && (
+                <section className="card roastscan-summary">
+                  <dl>
+                    <div><dt>Type</dt><dd>{form.type === 'income' ? 'Income' : 'Expense'}</dd></div>
+                    <div><dt>Category</dt><dd>{form.category || '—'}</dd></div>
+                    <div><dt>Date</dt><dd>{form.transaction_date || '—'}</dd></div>
+                    <div><dt>Time</dt><dd>{form.time || '—'}</dd></div>
+                    <div><dt>Method</dt><dd>{form.payment_method || '—'}</dd></div>
+                    <div><dt>Reference</dt><dd>{form.reference_id || '—'}</dd></div>
+                  </dl>
+                  <p className="roastscan-hint">{confidence.detail}</p>
+                </section>
               )}
-              {saved ? (
-                <Link className="button lime" to="/transactions">View activity</Link>
-              ) : (
-                <button className="button lime" disabled={saving || extractStatus === 'working'}>
+
+              {editing && (
+                <section className="card roastscan-edit">
+                  <div className="transaction-type-toggle">
+                    <button type="button" className={form.type === 'income' ? 'active' : ''} onClick={() => update('type', 'income')}>Income</button>
+                    <button type="button" className={form.type === 'expense' ? 'active' : ''} onClick={() => update('type', 'expense')}>Expense</button>
+                  </div>
+                  <label>Merchant<input value={form.merchant} onChange={(event) => setForm((current) => ({ ...current, merchant: event.target.value, title: event.target.value }))} placeholder="Payee or merchant" /></label>
+                  <label>Amount (₹)<input required min="0" step="0.01" type="number" value={form.amount} onChange={(event) => update('amount', event.target.value)} /></label>
+                  <div className="form-row">
+                    <label>Category
+                      <select value={form.category} onChange={(event) => update('category', event.target.value)}>
+                        <option value="">Select</option>
+                        {categories.map((category) => <option key={category}>{category}</option>)}
+                      </select>
+                    </label>
+                    <label>Payment method
+                      <select value={form.payment_method} onChange={(event) => update('payment_method', event.target.value)}>
+                        <option value="">Select</option>
+                        {paymentMethods.map((method) => <option key={method}>{method}</option>)}
+                      </select>
+                    </label>
+                  </div>
+                  <div className="form-row">
+                    <label>Date<input required type="date" value={form.transaction_date} onChange={(event) => update('transaction_date', event.target.value)} /></label>
+                    <label>Time<input type="time" value={form.time} onChange={(event) => update('time', event.target.value)} /></label>
+                  </div>
+                  <label>Reference / UTR<input value={form.reference_id} onChange={(event) => update('reference_id', event.target.value)} placeholder="UPI Ref or UTR" /></label>
+                </section>
+              )}
+
+              {confirmDuplicate && duplicates.length > 0 && (
+                <div className="roastscan-duplicate" role="status">
+                  <strong>Possible duplicate</strong>
+                  <p>{duplicates[0].title} · {money(duplicates[0].amount)} on {duplicates[0].transaction_date}.</p>
+                </div>
+              )}
+              {saveError && <p className="error">{saveError}</p>}
+
+              <div className="roastscan-actions">
+                <button type="button" className="button outline" onClick={() => navigate('/dashboard')}><ArrowLeft size={16} /> Back</button>
+                <button type="button" className="button outline" onClick={runExtract} disabled={scanning}>Try again</button>
+                <button type="button" className="button outline" onClick={() => setEditing((current) => !current)}>
+                  <Pencil size={15} /> {editing ? 'View summary' : 'Edit details'}
+                </button>
+                <button className="button lime" disabled={saving || scanning}>
                   {saving ? 'Saving…' : confirmDuplicate ? 'Save anyway' : 'Save transaction'}
                   <Check size={16} />
                 </button>
-              )}
-            </div>
-          </form>
-        </section>
-      )}
+              </div>
+            </>
+          )}
 
-      {!received && (
-        <div className="roastscan-actions">
-          <Link className="button outline" to="/dashboard"><ArrowLeft size={16} /> Back to home</Link>
-        </div>
+          {saved && (
+            <section className="card roastscan-saved" role="status">
+              <Check size={18} />
+              <div>
+                <strong>Saved to your ledger.</strong>
+                {roast?.text ? <p className="roast-quote">{roast.text}</p> : <p>Income stays un-roasted. The evidence is logged.</p>}
+              </div>
+              <Link className="button lime" to="/transactions">View activity</Link>
+            </section>
+          )}
+        </form>
       )}
-    </>
+    </div>
   )
 }

@@ -190,7 +190,7 @@ function Shell({ children }) {
   const [addNotice, setAddNotice] = useState(false)
   const [showAddHint, setShowAddHint] = useState(false)
   const [theme, setTheme] = useState(() => getPreferences().theme || 'system')
-  const title = pageTitles[location.pathname] || 'ROAST.MONEY'
+  const title = pageTitles[location.pathname] || 'Home'
   const adding = location.pathname === '/transactions' && new URLSearchParams(location.search).get('add') === '1'
 
   useEffect(() => {
@@ -277,7 +277,9 @@ function Shell({ children }) {
       <div className="main">
         <header className="topbar">
           <button className="icon-button menu-button" aria-label="Open navigation" onClick={() => setDrawer(true)}><Menu size={20} /></button>
-          <Link to="/dashboard" className="brand topbar-brand" aria-label="ROAST.MONEY home"><BrandLogo compact size="sm" /></Link>
+          <Link to="/dashboard" className="brand topbar-brand" aria-label="Home">
+            <BrandLogo compact size="sm" />
+          </Link>
           <div className="topbar-title">
             <h3>{title}</h3>
           </div>
@@ -320,7 +322,7 @@ function Settings() {
       <div className="page-intro compact-intro">
         <div>
           <p className="eyebrow">Control room</p>
-          <h1>Settings</h1>
+          <p className="lead">Profile, roast intensity, and appearance.</p>
         </div>
       </div>
       <section className="card settings-card">
@@ -365,7 +367,7 @@ function Protected({ children, isAuthenticated, authReady }) {
   if (!authReady) {
     return (
       <main className="auth-loading" role="status">
-        <p className="eyebrow">ROAST.MONEY</p>
+        <p className="eyebrow">Loading</p>
         <h1>Loading your ledger…</h1>
       </main>
     )
@@ -447,7 +449,9 @@ function App() {
   }, [])
 
   const handleAddTransaction = async (payload) => {
-    if (!session?.user) return
+    if (!session?.user) {
+      throw new Error('You must be signed in to save this transaction.')
+    }
     try {
       const created = await createUserTransaction(session.user.id, payload)
       const subject = { ...created[0], time: payload.time || created[0].time }

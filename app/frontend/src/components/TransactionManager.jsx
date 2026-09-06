@@ -174,7 +174,6 @@ export default function TransactionManager({ transactions, loading: fetching, fe
       <div className="page-intro compact-intro">
         <div>
           <p className="eyebrow">The full damage report</p>
-          <h1>Activity</h1>
           <p className="lead">Every decision. Unfortunately documented.</p>
         </div>
         <button className="button lime" onClick={() => setDialog({ mode: 'add' })}><Plus size={17} /> Add transaction</button>

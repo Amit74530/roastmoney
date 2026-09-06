@@ -231,7 +231,7 @@ public class ShareReceiverPlugin extends Plugin {
 
         int sample = 1;
         int maxDim = Math.max(bounds.outWidth, bounds.outHeight);
-        while (maxDim / sample > 1600 && sample < 16) {
+        while (maxDim / sample > 2048 && sample < 16) {
             sample *= 2;
         }
 
@@ -243,10 +243,10 @@ public class ShareReceiverPlugin extends Plugin {
         }
 
         try {
-            int quality = 82;
+            int quality = 88;
             byte[] data = encodeJpeg(bitmap, quality);
-            while (data != null && data.length > 900_000 && quality > 55) {
-                quality -= 12;
+            while (data != null && data.length > 1_200_000 && quality > 70) {
+                quality -= 6;
                 data = encodeJpeg(bitmap, quality);
             }
             return data;
