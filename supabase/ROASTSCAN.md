@@ -27,7 +27,7 @@ The extractor must be redeployed after code changes:
 supabase functions deploy roastscan-extract
 ```
 
-`verify_jwt` is enabled in `supabase/config.toml`. The function uses `OPENAI_API_KEY` only on the server.
+`verify_jwt` is **off at the API gateway** so CORS preflight can reach the function. The function still requires a signed-in user: it checks the session with `/auth/v1/user` before calling OpenAI.
 
 ## 3. Set secrets (dashboard or CLI)
 
