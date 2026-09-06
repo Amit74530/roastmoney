@@ -12,6 +12,20 @@ const invokeErrorMessage = async (error, data) => {
   return error?.message || 'RoastScan could not reach the extractor.'
 }
 
+const dataUrlToBase64 = (dataUrl) => {
+  const [, base64] = String(dataUrl || '').split(',')
+  if (!base64) throw new Error('Could not encode the screenshot.')
+  return base64
+}
+
+const blobToDataUrl = (blob) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result || ''))
+    reader.onerror = () => reject(new Error('Could not encode the screenshot.'))
+    reader.readAsDataURL(blob)
+  })
+
 const blobToJpegBase64 = async (blob) => {
   const bitmap = await createImageBitmap(blob)
   const maxEdge = 1280
@@ -22,10 +36,15 @@ const blobToJpegBase64 = async (blob) => {
   const context = canvas.getContext('2d')
   if (!context) throw new Error('Could not prepare the screenshot for scanning.')
   context.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
-  const dataUrl = canvas.toDataURL('image/jpeg', 0.82)
-  const [, base64] = dataUrl.split(',')
-  if (!base64) throw new Error('Could not encode the screenshot.')
-  return base64
+  return dataUrlToBase64(canvas.toDataURL('image/jpeg', 0.82))
+}
+
+const blobToUploadBase64 = async (blob) => {
+  const smallJpeg = blob.size <= 900_000 && /jpe?g/i.test(blob.type || '')
+  if (smallJpeg) {
+    return dataUrlToBase64(await blobToDataUrl(blob))
+  }
+  return blobToJpegBase64(blob)
 }
 
 export async function imageSourceToUpload({ imageBase64, mimeType, webPath }) {
@@ -41,7 +60,7 @@ export async function imageSourceToUpload({ imageBase64, mimeType, webPath }) {
   }
   const blob = await response.blob()
   return {
-    imageBase64: await blobToJpegBase64(blob),
+    imageBase64: await blobToUploadBase64(blob),
     mimeType: 'image/jpeg',
   }
 }

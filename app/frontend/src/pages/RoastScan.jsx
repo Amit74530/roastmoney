@@ -97,9 +97,9 @@ export default function RoastScan({ transactions = [], onSave }) {
     try {
       let prepared
       try {
-        const upload = await ShareReceiver.readPendingShareForUpload()
+        const upload = toDisplayableShare(await ShareReceiver.readPendingShareForUpload())
         prepared = await imageSourceToUpload({
-          imageBase64: upload?.imageBase64,
+          webPath: upload?.webPath,
           mimeType: upload?.mimeType,
         })
       } catch (nativeError) {
