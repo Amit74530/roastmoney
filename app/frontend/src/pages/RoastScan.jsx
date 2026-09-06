@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Check, Pencil, ScanSearch } from 'lucide-react'
+import { Link, useLocation } from 'react-router-dom'
+import { ArrowLeft, Check, Pencil, RefreshCw, ScanSearch } from 'lucide-react'
 import { ShareReceiver, isNativeShareReceiverAvailable, toDisplayableShare } from '../plugins/shareReceiver'
 import { extractRoastScanImage, imageSourceToUpload } from '../lib/roastscanService'
 import { confidenceCopy, emptyForm, mapExtractionToForm } from '../lib/roastscanMapping'
@@ -13,9 +13,23 @@ const money = (value) => {
   return `₹${amount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
 }
 
+const prettyDate = (value) => {
+  if (!value) return '—'
+  const date = new Date(`${value}T00:00:00`)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+const prettyTime = (value) => {
+  if (!value) return '—'
+  const [hours, minutes] = String(value).split(':')
+  const date = new Date()
+  date.setHours(Number(hours) || 0, Number(minutes) || 0, 0, 0)
+  return date.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })
+}
+
 export default function RoastScan({ transactions = [], onSave }) {
   const location = useLocation()
-  const navigate = useNavigate()
   const [shareState, setShareState] = useState({ status: 'loading', share: null })
   const [extractStatus, setExtractStatus] = useState('idle')
   const [extractError, setExtractError] = useState('')
@@ -210,22 +224,27 @@ export default function RoastScan({ transactions = [], onSave }) {
       {received && (
         <form className="roastscan-layout" onSubmit={handleSave}>
           <section className="card roastscan-hero">
-            {share.webPath && (
-              <figure className="roastscan-thumb">
-                <img src={share.webPath} alt="Shared payment screenshot" />
-              </figure>
-            )}
-            <div className="roastscan-hero-copy">
-              <p className="eyebrow">{scanning ? 'Analyzing screenshot' : saved ? 'Saved' : 'Payment scan'}</p>
-              <strong className="roastscan-amount">{scanning ? 'Reading…' : money(form.amount)}</strong>
-              <p className="roastscan-merchant">{form.merchant || (scanning ? 'Looking for the payee' : 'Merchant not found')}</p>
+            <div className="roastscan-hero-top">
+              <p className="eyebrow">{scanning ? 'Scanning' : saved ? 'Saved' : 'Scan result'}</p>
               <span className={`roastscan-confidence ${confidence.tone}`}>{confidence.label}</span>
+            </div>
+            <div className="roastscan-hero-main">
+              <div className="roastscan-hero-copy">
+                <strong className="roastscan-amount">{scanning ? 'Reading…' : money(form.amount)}</strong>
+                <p className="roastscan-merchant">{form.merchant || (scanning ? 'Looking for the payee' : 'Merchant not found')}</p>
+                <small>{form.type === 'income' ? 'Income' : 'Expense'}{form.title && form.title !== form.merchant ? ` · ${form.title}` : ''}</small>
+              </div>
+              {share.webPath && (
+                <figure className="roastscan-thumb">
+                  <img src={share.webPath} alt="Shared payment screenshot" />
+                </figure>
+              )}
             </div>
           </section>
 
           {scanning && (
             <section className="card roastscan-status-card" role="status">
-              <p>ROAST.MONEY is reading merchant, amount, date, and reference from the screenshot. Nothing is saved yet.</p>
+              <p>Reading merchant, amount, date, and reference. Nothing is saved yet.</p>
             </section>
           )}
 
@@ -235,27 +254,29 @@ export default function RoastScan({ transactions = [], onSave }) {
             <>
               {!editing && (
                 <section className="card roastscan-summary">
-                  <dl>
-                    <div><dt>Type</dt><dd>{form.type === 'income' ? 'Income' : 'Expense'}</dd></div>
-                    <div><dt>Category</dt><dd>{form.category || '—'}</dd></div>
-                    <div><dt>Date</dt><dd>{form.transaction_date || '—'}</dd></div>
-                    <div><dt>Time</dt><dd>{form.time || '—'}</dd></div>
-                    <div><dt>Method</dt><dd>{form.payment_method || '—'}</dd></div>
-                    <div><dt>Reference</dt><dd>{form.reference_id || '—'}</dd></div>
-                  </dl>
+                  <ul>
+                    <li><span>Category</span><strong>{form.category || '—'}</strong></li>
+                    <li><span>Payment method</span><strong>{form.payment_method || '—'}</strong></li>
+                    <li><span>Date / Time</span><strong>{prettyDate(form.transaction_date)}{form.time ? ` · ${prettyTime(form.time)}` : ''}</strong></li>
+                    <li><span>Reference</span><strong>{form.reference_id || '—'}</strong></li>
+                  </ul>
                   <p className="roastscan-hint">{confidence.detail}</p>
                 </section>
               )}
 
               {editing && (
                 <section className="card roastscan-edit">
-                  <div className="transaction-type-toggle">
-                    <button type="button" className={form.type === 'income' ? 'active' : ''} onClick={() => update('type', 'income')}>Income</button>
+                  <div className="roastscan-type-toggle" role="group" aria-label="Transaction type">
                     <button type="button" className={form.type === 'expense' ? 'active' : ''} onClick={() => update('type', 'expense')}>Expense</button>
+                    <button type="button" className={form.type === 'income' ? 'active' : ''} onClick={() => update('type', 'income')}>Income</button>
                   </div>
-                  <label>Merchant<input value={form.merchant} onChange={(event) => setForm((current) => ({ ...current, merchant: event.target.value, title: event.target.value }))} placeholder="Payee or merchant" /></label>
-                  <label>Amount (₹)<input required min="0" step="0.01" type="number" value={form.amount} onChange={(event) => update('amount', event.target.value)} /></label>
-                  <div className="form-row">
+                  <label>Merchant
+                    <input value={form.merchant} onChange={(event) => setForm((current) => ({ ...current, merchant: event.target.value, title: event.target.value }))} placeholder="Payee or merchant" />
+                  </label>
+                  <label>Amount
+                    <input required min="0" step="0.01" type="number" inputMode="decimal" value={form.amount} onChange={(event) => update('amount', event.target.value)} placeholder="0.00" />
+                  </label>
+                  <div className="roastscan-edit-row">
                     <label>Category
                       <select value={form.category} onChange={(event) => update('category', event.target.value)}>
                         <option value="">Select</option>
@@ -269,11 +290,13 @@ export default function RoastScan({ transactions = [], onSave }) {
                       </select>
                     </label>
                   </div>
-                  <div className="form-row">
+                  <div className="roastscan-edit-row">
                     <label>Date<input required type="date" value={form.transaction_date} onChange={(event) => update('transaction_date', event.target.value)} /></label>
                     <label>Time<input type="time" value={form.time} onChange={(event) => update('time', event.target.value)} /></label>
                   </div>
-                  <label>Reference / UTR<input value={form.reference_id} onChange={(event) => update('reference_id', event.target.value)} placeholder="UPI Ref or UTR" /></label>
+                  <label>Reference
+                    <input value={form.reference_id} onChange={(event) => update('reference_id', event.target.value)} placeholder="UPI Ref or UTR" />
+                  </label>
                 </section>
               )}
 
@@ -286,15 +309,18 @@ export default function RoastScan({ transactions = [], onSave }) {
               {saveError && <p className="error">{saveError}</p>}
 
               <div className="roastscan-actions">
-                <button type="button" className="button outline" onClick={() => navigate('/dashboard')}><ArrowLeft size={16} /> Back</button>
-                <button type="button" className="button outline" onClick={runExtract} disabled={scanning}>Try again</button>
-                <button type="button" className="button outline" onClick={() => setEditing((current) => !current)}>
-                  <Pencil size={15} /> {editing ? 'View summary' : 'Edit details'}
-                </button>
                 <button className="button lime" disabled={saving || scanning}>
                   {saving ? 'Saving…' : confirmDuplicate ? 'Save anyway' : 'Save transaction'}
                   <Check size={16} />
                 </button>
+                <div className="roastscan-secondary">
+                  <button type="button" className="button outline" onClick={runExtract} disabled={scanning}>
+                    <RefreshCw size={15} /> Try again
+                  </button>
+                  <button type="button" className="button outline" onClick={() => setEditing((current) => !current)}>
+                    <Pencil size={15} /> {editing ? 'View summary' : 'Edit details'}
+                  </button>
+                </div>
               </div>
             </>
           )}

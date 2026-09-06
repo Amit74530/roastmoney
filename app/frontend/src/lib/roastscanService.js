@@ -1,13 +1,10 @@
-import { supabase } from './supabaseClient'
+import { supabase, supabaseAnonKey, supabaseUrl } from './supabaseClient'
 
 const invokeErrorMessage = async (error, data) => {
   if (data?.error) return data.error
   if (data?.message) return data.message
-  try {
-    const body = typeof error?.context?.json === 'function' ? await error.context.json() : null
-    if (body?.error) return body.error
-  } catch {
-    // Fall through to the generic message.
+  if (typeof error?.message === 'string' && error.message && !/failed to send a request/i.test(error.message)) {
+    return error.message
   }
   return error?.message || 'RoastScan could not reach the extractor.'
 }
@@ -74,24 +71,38 @@ export async function extractRoastScanImage({ imageBase64, mimeType }) {
   if (sessionError || !session?.access_token) {
     throw new Error('Sign in to scan a payment screenshot.')
   }
-
-  const { data, error } = await supabase.functions.invoke('roastscan-extract', {
-    headers: { Authorization: `Bearer ${session.access_token}` },
-    body: {
-      imageBase64,
-      mimeType: mimeType || 'image/jpeg',
-    },
-  })
-
-  if (error) {
-    throw new Error(await invokeErrorMessage(error, data))
+  if (!imageBase64) {
+    throw new Error('The screenshot was empty.')
   }
-  if (data?.error) {
-    throw new Error(data.error)
+
+  let response
+  try {
+    response = await fetch(`${supabaseUrl}/functions/v1/roastscan-extract`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        apikey: supabaseAnonKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        imageBase64,
+        mimeType: mimeType || 'image/jpeg',
+      }),
+    })
+  } catch (error) {
+    throw new Error(error?.message || 'Could not reach the RoastScan extractor.')
   }
-  if (!data?.extraction) {
+
+  const payload = await response.json().catch(() => null)
+  if (!response.ok) {
+    throw new Error(await invokeErrorMessage({ message: `Extractor failed (${response.status}).` }, payload))
+  }
+  if (payload?.error) {
+    throw new Error(payload.error)
+  }
+  if (!payload?.extraction) {
     throw new Error('The extractor returned no structured result.')
   }
 
-  return data.extraction
+  return payload.extraction
 }
