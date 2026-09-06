@@ -8,7 +8,6 @@ export default function Achievements({ transactions }) {
       <div className="page-intro compact-intro">
         <div>
           <p className="eyebrow">Proof of habits</p>
-          <h1>Achievements</h1>
           <p className="lead">Small wins. Relentlessly documented.</p>
         </div>
       </div>
