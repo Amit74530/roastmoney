@@ -113,13 +113,18 @@ export default function RoastScan({ transactions = [], onSave }) {
       try {
         const upload = toDisplayableShare(await ShareReceiver.readPendingShareForUpload())
         prepared = await imageSourceToUpload({
+          imageBase64: upload?.imageBase64,
           webPath: upload?.webPath,
           mimeType: upload?.mimeType,
         })
       } catch (nativeError) {
         console.warn('[RoastScan] Native JPEG copy unavailable, using preview fetch.', nativeError)
-        prepared = await imageSourceToUpload({ webPath: share.webPath })
+        prepared = await imageSourceToUpload({ webPath: share.webPath, mimeType: share.mimeType })
       }
+      console.info('[RoastScan] prepared upload', {
+        mimeType: prepared.mimeType,
+        base64Length: prepared.imageBase64?.length || 0,
+      })
       const result = await extractRoastScanImage(prepared)
       setExtraction(result)
       setForm(mapExtractionToForm(result))

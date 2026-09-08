@@ -5,9 +5,14 @@ import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Matrix;
+import android.media.ExifInterface;
 import android.net.Uri;
 import android.os.Build;
 import android.provider.OpenableColumns;
+import android.util.Log;
 import android.webkit.MimeTypeMap;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -33,7 +38,7 @@ public class ShareReceiverPlugin extends Plugin {
     private static final String EVENT_SHARE_RECEIVED = "shareReceived";
     private static final String HANDLED_EXTRA = "roastscan_handled";
     private static final long MAX_BYTES = 25L * 1024L * 1024L;
-    private static final int MAX_UPLOAD_BYTES = 700_000;
+    private static final int MAX_UPLOAD_BYTES = 900_000;
 
     private JSObject pendingShare;
 
@@ -99,6 +104,7 @@ public class ShareReceiverPlugin extends Plugin {
                     call.reject("The shared image could not be prepared for scanning.");
                     return;
                 }
+                Log.i("RoastScan", "upload jpeg bytes=" + jpeg.length);
 
                 File uploadFile = new File(file.getParentFile(), pending.getString("id") + "-upload.jpg");
                 try (FileOutputStream out = new FileOutputStream(uploadFile)) {
@@ -256,23 +262,26 @@ public class ShareReceiverPlugin extends Plugin {
 
         int sample = 1;
         int maxDim = Math.max(bounds.outWidth, bounds.outHeight);
-        while (maxDim / sample > 2048 && sample < 16) {
+        while (maxDim / sample > 2560 && sample < 16) {
             sample *= 2;
         }
 
         BitmapFactory.Options opts = new BitmapFactory.Options();
         opts.inSampleSize = Math.max(sample, 1);
-        Bitmap bitmap = BitmapFactory.decodeFile(file.getAbsolutePath(), opts);
-        if (bitmap == null) {
+        Bitmap decoded = BitmapFactory.decodeFile(file.getAbsolutePath(), opts);
+        if (decoded == null) {
             return null;
         }
 
-        Bitmap working = bitmap;
+        Bitmap working = flattenAndOrient(decoded, file);
+        if (working != decoded) {
+            decoded.recycle();
+        }
         try {
-            int quality = 88;
+            int quality = 90;
             byte[] data = encodeJpeg(working, quality);
-            while (data != null && data.length > MAX_UPLOAD_BYTES && quality > 62) {
-                quality -= 8;
+            while (data != null && data.length > MAX_UPLOAD_BYTES && quality > 70) {
+                quality -= 5;
                 data = encodeJpeg(working, quality);
             }
             if (data != null && data.length > MAX_UPLOAD_BYTES) {
@@ -284,11 +293,48 @@ public class ShareReceiverPlugin extends Plugin {
                     working.recycle();
                     working = smaller;
                 }
-                data = encodeJpeg(working, 75);
+                data = encodeJpeg(working, 80);
             }
             return data;
         } finally {
             working.recycle();
+        }
+    }
+
+    private Bitmap flattenAndOrient(Bitmap bitmap, File file) {
+        Bitmap oriented = applyExif(bitmap, file);
+        if (!oriented.hasAlpha()) {
+            return oriented;
+        }
+        Bitmap opaque = Bitmap.createBitmap(oriented.getWidth(), oriented.getHeight(), Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(opaque);
+        canvas.drawColor(Color.WHITE);
+        canvas.drawBitmap(oriented, 0, 0, null);
+        if (oriented != bitmap) {
+            oriented.recycle();
+        }
+        return opaque;
+    }
+
+    private Bitmap applyExif(Bitmap bitmap, File file) {
+        try {
+            ExifInterface exif = new ExifInterface(file.getAbsolutePath());
+            int orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL);
+            int degrees = 0;
+            if (orientation == ExifInterface.ORIENTATION_ROTATE_90) {
+                degrees = 90;
+            } else if (orientation == ExifInterface.ORIENTATION_ROTATE_180) {
+                degrees = 180;
+            } else if (orientation == ExifInterface.ORIENTATION_ROTATE_270) {
+                degrees = 270;
+            } else {
+                return bitmap;
+            }
+            Matrix matrix = new Matrix();
+            matrix.postRotate(degrees);
+            return Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
+        } catch (Exception ignored) {
+            return bitmap;
         }
     }
 

@@ -19,25 +19,27 @@ export function mapExtractionToForm(extraction) {
   const category = categories.includes(extraction?.category) ? extraction.category : ''
   const paymentMethod = paymentMethods.includes(extraction?.payment_method) ? extraction.payment_method : ''
   const merchant = extraction?.merchant || ''
+  const amount = extraction?.amount
+  const amountText = amount == null || amount === '' ? '' : String(amount)
 
   return {
     ...emptyForm(),
     title: extraction?.title || merchant,
     merchant,
-    amount: extraction?.amount == null ? '' : String(extraction.amount),
+    amount: amountText,
     type,
     category,
     transaction_date: extraction?.date || '',
     time: extraction?.time || '',
     payment_method: paymentMethod,
     reference_id: extraction?.reference_id || '',
-    description: extraction?.notes || '',
+    description: '',
   }
 }
 
 export function confidenceCopy(extraction) {
   const value = Number(extraction?.confidence)
-  if (!extraction || extraction.unclear || !Number.isFinite(value) || value < 0.55) {
+  if (!extraction || extraction.amount == null || !extraction.merchant || !Number.isFinite(value) || value < 0.55) {
     return { tone: 'low', label: 'Low confidence', detail: 'Check merchant and amount before saving.' }
   }
   if (value < 0.8) {
