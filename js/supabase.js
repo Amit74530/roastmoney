@@ -18,6 +18,53 @@
     console.error('[Supabase] Failed to initialize the client. Check that the CDN loaded before this script.');
   }
 
+  // Transaction database methods
+  async function getTransactions(userId) {
+    if (!supabaseClient) {
+      return { data: null, error: new Error('Supabase client unavailable') };
+    }
+    const { data, error } = await supabaseClient
+      .from('transactions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('transaction_date', { ascending: false });
+    return { data, error };
+  }
+
+  async function addTransaction(transaction) {
+    if (!supabaseClient) {
+      return { data: null, error: new Error('Supabase client unavailable') };
+    }
+    const { data, error } = await supabaseClient
+      .from('transactions')
+      .insert([transaction])
+      .select();
+    return { data, error };
+  }
+
+  async function updateTransaction(id, updates) {
+    if (!supabaseClient) {
+      return { data: null, error: new Error('Supabase client unavailable') };
+    }
+    const { data, error } = await supabaseClient
+      .from('transactions')
+      .update(updates)
+      .eq('id', id)
+      .select();
+    return { data, error };
+  }
+
+  async function deleteTransaction(id) {
+    if (!supabaseClient) {
+      return { data: null, error: new Error('Supabase client unavailable') };
+    }
+    const { data, error } = await supabaseClient
+      .from('transactions')
+      .delete()
+      .eq('id', id);
+    return { data, error };
+  }
+
   window.RoastMoneySupabase = {
     SUPABASE_URL,
     SUPABASE_ANON_KEY,
@@ -29,6 +76,10 @@
       }
       return window.RoastMoneySupabase.supabase;
     },
+    getTransactions,
+    addTransaction,
+    updateTransaction,
+    deleteTransaction,
   };
 
   window.supabaseClient = supabaseClient;

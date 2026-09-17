@@ -2,15 +2,17 @@
  * ui.js
  * Pure(-ish) rendering functions. Each function takes data and writes DOM.
  * State mutation and event wiring live in app.js — this file only draws.
+ * Enhanced for world-class 2026 fintech design system.
  */
 
 const UI = (() => {
   function escapeHtml(str) {
     return String(str)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
+      .replace(/&/g, '&')
+      .replace(/</g, '<')
+      .replace(/>/g, '>')
+      .replace(/"/g, '"')
+      .replace(/'/g, '&#039;');
   }
 
   function formatCurrency(amount) {
@@ -29,6 +31,7 @@ const UI = (() => {
     return new Date(timestamp).toLocaleDateString('en-IN', {
       day: 'numeric',
       month: 'short',
+      year: 'numeric'
     });
   }
 
@@ -46,285 +49,552 @@ const UI = (() => {
     el.classList.add('is-updating');
     setTimeout(() => {
       el.innerHTML = `
-        <p class="receipt-eyebrow">SPENDING DETECTED</p>
-        <div class="receipt-main">
-          <div>
-            <p class="receipt-merchant">${escapeHtml(tx.merchant)}</p>
-            <p class="receipt-category">${escapeHtml(tx.category)}</p>
+        <div class="receipt-content">
+          <p class="receipt-eyebrow">${statusLabel}</p>
+          <div class="receipt-main">
+            <div class="receipt-info">
+              <p class="receipt-merchant">${escapeHtml(tx.merchant || 'Unknown Merchant')}</p>
+              <p class="receipt-category">${getCategoryLabel(tx.category)}</p>
+            </div>
+            <p class="receipt-amount">${formatCurrency(Math.abs(tx.amount))}</p>
           </div>
-          <p class="receipt-amount">${formatCurrency(tx.amount)}</p>
+          <p class="receipt-time">${formatTime(tx.timestamp || tx.date)}</p>
+          <div class="receipt-divider" aria-hidden="true"></div>
+          <p class="receipt-status-label">ROAST STATUS</p>
+          <p class="receipt-roast-text">${escapeHtml(roastText)}</p>
         </div>
-        <p class="receipt-time">${escapeHtml(tx.time)}</p>
-        <div class="receipt-divider" aria-hidden="true"></div>
-        <p class="receipt-status-label">ROAST STATUS</p>
-        <p class="receipt-status-value">${escapeHtml(statusLabel)}</p>
-        <p class="receipt-roast">"${escapeHtml(roastText)}"</p>
       `;
       el.classList.remove('is-updating');
-    }, 180);
+    }, 300);
   }
 
-  function walletMoodFromIntensity(intensity) {
-    if (intensity <= 30) return { label: 'calm', dot: 'calm' };
-    if (intensity <= 55) return { label: 'suspicious', dot: 'mild' };
-    if (intensity <= 78) return { label: 'concerned', dot: 'questionable' };
-    return { label: 'deeply concerned', dot: 'severe' };
-  }
+  // ---- Financial Metrics Cards ---------------------------------------
 
-  // ---- Transaction history --------------------------------------------
-
-  function renderTransactionRow(tx) {
-    const intensity = tx.intensity ?? 0;
-    return `
-      <li class="tx-row" data-tx-id="${tx.id}" tabindex="0" role="button"
-          aria-label="View details for ${escapeHtml(tx.merchant)}, ${formatCurrency(tx.amount)}">
-        <span class="tx-cell tx-merchant">${escapeHtml(tx.merchant)}</span>
-        <span class="tx-cell tx-category">${escapeHtml(tx.category)}</span>
-        <span class="tx-cell tx-time">${formatDate(tx.timestamp)} · ${formatTime(tx.timestamp)}</span>
-        <span class="tx-cell tx-amount">${formatCurrency(tx.amount)}</span>
-        <span class="tx-cell tx-intensity">
-          <span class="intensity-bar ${statusClass(intensity)}">
-            <span class="intensity-fill" style="width:${intensity}%"></span>
-          </span>
-        </span>
-        <button class="tx-delete" data-action="delete-tx" data-tx-id="${tx.id}" aria-label="Delete this transaction">✕</button>
-      </li>
+  function renderHealthCard(el, label, value, change, isPositive = true) {
+    el.innerHTML = `
+      <h3 class="health-label">${label}</h3>
+      <div class="health-value">${value}</div>
+      <p class="health-change ${isPositive ? 'positive' : 'negative'}">
+        ${change}
+      </p>
     `;
   }
 
-  function renderTransactionList(container, transactions) {
-    if (!transactions.length) {
-      container.innerHTML = `
-        <li class="empty-state" role="status">
-          <p class="empty-title">NO TRANSACTIONS YET.</p>
-          <p class="empty-copy">Your wallet is suspiciously quiet.</p>
-          <button class="btn btn-primary" data-action="focus-lab">ADD YOUR FIRST MISTAKE</button>
-        </li>`;
-      return;
-    }
-    container.innerHTML = transactions.map(renderTransactionRow).join('');
-  }
-
-  function renderTransactionDetail(panel, tx) {
-    if (!tx) {
-      panel.innerHTML = `<p class="panel-placeholder">Select a transaction to see the full verdict.</p>`;
-      panel.classList.remove('is-open');
-      return;
-    }
-    panel.classList.add('is-open');
-    panel.innerHTML = `
-      <p class="panel-eyebrow">TRANSACTION DETAIL</p>
-      <p class="panel-merchant">${escapeHtml(tx.merchant)}</p>
-      <p class="panel-amount">${formatCurrency(tx.amount)}</p>
-      <dl class="panel-meta">
-        <div><dt>Category</dt><dd>${escapeHtml(tx.category)}</dd></div>
-        <div><dt>Time</dt><dd>${formatDate(tx.timestamp)}, ${formatTime(tx.timestamp)}</dd></div>
-        <div><dt>Transaction ID</dt><dd class="mono">${tx.id}</dd></div>
-        <div><dt>Financial damage</dt><dd>${tx.intensity}/100</dd></div>
-      </dl>
-      <p class="panel-roast">"${escapeHtml(tx.roast)}"</p>
-      <button class="btn btn-ghost" data-action="reroast" data-tx-id="${tx.id}">ROAST IT AGAIN</button>
+  function renderHealthMeter(el, score, label) {
+    el.innerHTML = `
+      <div class="health-meter">
+        <div class="health-meter-fill" style="width: ${score}%"></div>
+      </div>
+      <p class="health-meter-label">${label}</p>
     `;
-  }
 
-  // ---- How-it-works sequence -------------------------------------------
-
-  function setActiveStep(stepEls, index) {
-    stepEls.forEach((el, i) => el.classList.toggle('is-active', i === index));
-  }
-
-  // ---- Roast Lab loading sequence ---------------------------------------
-
-  function runLoadingSequence(el, onDone) {
-    const lines = ['checking amount…', 'questioning your decisions…', 'verdict ready.'];
-    el.classList.add('is-active');
-    el.innerHTML = `<p class="loading-title">ANALYZING PURCHASE…</p><p class="loading-line"></p>`;
-    const lineEl = el.querySelector('.loading-line');
-    let i = 0;
-    const step = () => {
-      if (i < lines.length) {
-        lineEl.textContent = lines[i];
-        i += 1;
-        setTimeout(step, 380);
+    // Set meter color based on score
+    const fill = el.querySelector('.health-meter-fill');
+    if (fill) {
+      if (score >= 80) {
+        fill.style.background = 'linear-gradient(90deg, var(--color-status-calm), var(--color-success))';
+      } else if (score >= 60) {
+        fill.style.background = 'linear-gradient(90deg, var(--color-status-concerning), var(--color-warning))';
       } else {
-        el.classList.remove('is-active');
-        onDone();
+        fill.style.background = 'linear-gradient(90deg, var(--color-status-severe), var(--color-error))';
       }
-    };
-    step();
+    }
   }
 
-  // ---- Personality reveal -------------------------------------------
+  // ---- Charts --------------------------------------------------------
 
-  function renderPersonalityReveal(container, personality) {
-    if (!personality) {
-      container.innerHTML = `<p class="empty-copy">Add a few transactions in the lab above to unlock your diagnosis.</p>`;
-      return;
-    }
-    container.innerHTML = `
-      <p class="personality-eyebrow">YOUR SPENDING PERSONALITY</p>
-      <h3 class="personality-title">${escapeHtml(personality.title)}</h3>
-      <p class="personality-line">"${escapeHtml(personality.line)}"</p>
-      <div class="trait-grid">
-        <div class="trait">
-          <p class="trait-label">IMPULSE</p>
-          <p class="trait-value" data-trait="impulse">0</p>
+  function renderChartPlaceholder(el, title, type = 'line') {
+    el.innerHTML = `
+      <div class="chart-placeholder">
+        <div class="chart-icon">📊</div>
+        <h4 class="chart-placeholder-title">${title}</h4>
+        <p class="chart-placeholder-subtitle">Chart visualization loading...</p>
+        <div class="chart-placeholder-bg"></div>
+      </div>
+    `;
+  }
+
+  // ---- Transactions --------------------------------------------------
+
+  function renderTransactionItem(el, tx) {
+    const isIncome = tx.amount >= 0;
+    el.innerHTML = `
+      <div class="transaction-item" data-id="${tx.id}">
+        <div class="transaction-icon">
+          ${getCategoryIcon(tx.category)}
         </div>
-        <div class="trait">
-          <p class="trait-label">DISCIPLINE</p>
-          <p class="trait-value" data-trait="discipline">0</p>
+        <div class="transaction-details">
+          <div class="transaction-merchant">${escapeHtml(tx.merchant || 'Unknown Merchant')}</div>
+          <div class="transaction-meta">
+            <span>${formatDate(tx.timestamp || tx.date)}</span>
+            <span>${getCategoryLabel(tx.category)}</span>
+          </div>
         </div>
-        <div class="trait">
-          <p class="trait-label">CHAOS</p>
-          <p class="trait-value" data-trait="chaos">0</p>
+        <div class="transaction-amount ${isIncome ? 'positive' : 'negative'}">
+          ${formatCurrency(Math.abs(tx.amount))}
         </div>
       </div>
-      <p class="diagnosis-label">DIAGNOSIS</p>
-      <p class="diagnosis-line">"${escapeHtml(personality.diagnosis)}"</p>
     `;
-    ['impulse', 'discipline', 'chaos'].forEach((key) => {
-      const target = container.querySelector(`[data-trait="${key}"]`);
-      Motion.countUp(target, 0, personality.traits[key], 1000);
-    });
+  }
+
+  function renderEmptyTransactions(el) {
+    el.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">📭</div>
+        <h3 class="empty-state-title">No transactions yet</h3>
+        <p class="empty-state-description">Add your first transaction to see your money story unfold.</p>
+        <button class="btn btn-accent empty-state-action" onclick="window.RoastMoneyApp.showAddTransactionModal()">Add Transaction</button>
+      </div>
+    `;
+  }
+
+  // ---- Insights ------------------------------------------------------
+
+  function renderRoastInsight(el, score) {
+    el.innerHTML = score > 0 ?
+      `<p>${getRoastText(score)}</p>` :
+      `<p class="insight-placeholder">Your personalized roast will appear here after analyzing your spending habits.</p>`;
+  }
+
+  function renderPersonalityInsight(el, personality) {
+    el.innerHTML = personality ?
+      `<p>${personality.description}</p>` :
+      `<p class="insight-placeholder">Your money personality will be revealed after sufficient transaction data.</p>`;
+  }
+
+  function renderForecastInsight(el, transactions) {
+    el.innerHTML = generateFinancialForecast(transactions);
+  }
+
+  function renderAchievementsInsight(el, achievements) {
+    if (!achievements || achievements.length === 0) {
+      el.innerHTML = `
+        <div class="achievements-placeholder">
+          <h4>No achievements yet</h4>
+          <p>Keep using ROAST.MONEY to unlock financial milestones!</p>
+        </div>
+      `;
+      return;
+    }
+
+    el.innerHTML = achievements.map(achievement => `
+      <div class="achievement-item">
+        <div class="achievement-icon">${achievement.icon || '🏆'}</div>
+        <div class="achievement-content">
+          <h4>${achievement.title}</h4>
+          <p>${achievement.description}</p>
+          ${achievement.date ? `<small class="achievement-date">${formatDate(achievement.date)}</small>` : ''}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // ---- Wrapped -------------------------------------------------------
+
+  function renderWrappedPreview(el, transactions) {
+    if (!transactions || transactions.length === 0) {
+      el.innerHTML = `
+        <div class="wrapped-preview">
+          <h3>Your Financial Year in Review</h3>
+          <p>Add some transactions to see your money story unfold.</p>
+        </div>
+      `;
+      return;
+    }
+
+    const totalSpent = Math.abs(transactions
+      .filter(tx => tx.amount < 0)
+      .reduce((sum, tx) => sum + tx.amount, 0));
+
+    const totalEarned = transactions
+      .filter(tx => tx.amount > 0)
+      .reduce((sum, tx) => sum + tx.amount, 0);
+
+    const favoriteCategory = getTopCategory(transactions);
+
+    el.innerHTML = `
+      <div class="wrapped-preview">
+        <h3>Your Financial Year in Review</h3>
+        <p>Based on ${transactions.length} transactions, here's your money story:</p>
+        <div class="wrapped-stats">
+          <div class="wrapped-stat">
+            <h4>Total Spent</h4>
+            <p>${formatCurrency(totalSpent)}</p>
+          </div>
+          <div class="wrapped-stat">
+            <h4>Total Earned</h4>
+            <p>${formatCurrency(totalEarned)}</p>
+          </div>
+          <div class="wrapped-stat">
+            <h4>Favorite Category</h4>
+            <p>${favoriteCategory}</p>
+          </div>
+        </div>
+      </div>
+    `;
   }
 
   // ---- Heatmap -------------------------------------------------------
 
-  function buildHeatmapDays(transactions, year = 2026, month = 7 /* August, 0-indexed */) {
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const days = [];
-    for (let d = 1; d <= daysInMonth; d += 1) {
-      const dayTx = transactions.filter((t) => new Date(t.timestamp).getDate() === d);
-      const total = dayTx.reduce((s, t) => s + t.amount, 0);
-      days.push({ day: d, total, count: dayTx.length, transactions: dayTx });
+  function renderCalendarHeatmap(el, transactions) {
+    if (!transactions || transactions.length === 0) {
+      el.innerHTML = `
+        <div class="heatmap-empty">
+          <div class="heatmap-empty-icon">📅</div>
+          <p class="heatmap-empty-title">No transaction data for calendar view</p>
+          <p class="heatmap-empty-description">Add transactions to see your spending patterns over time.</p>
+        </div>
+      `;
+      return;
     }
-    return days;
+
+    el.innerHTML = createCalendarHeatmap(transactions);
   }
 
-  function renderHeatmap(container, transactions) {
-    const days = buildHeatmapDays(transactions);
-    const max = Math.max(1, ...days.map((d) => d.total));
-    container.innerHTML = days
-      .map((d) => {
-        const intensity = d.total / max;
-        const level = intensity === 0 ? 0 : Math.max(1, Math.ceil(intensity * 4));
-        return `
-        <button class="heatmap-day" data-level="${level}" data-day="${d.day}"
-          aria-label="August ${d.day}, ${formatCurrency(d.total)}, ${d.count} transactions">
-          <span class="heatmap-day-number">${d.day}</span>
-        </button>`;
-      })
-      .join('');
-  }
+  // ---- Modals --------------------------------------------------------
 
-  // ---- Money flow visualization ---------------------------------------
-
-  function renderFlow(container, transactions) {
-    const byCategory = {};
-    transactions.forEach((t) => {
-      byCategory[t.category] = (byCategory[t.category] || 0) + t.amount;
-    });
-    const total = transactions.reduce((s, t) => s + t.amount, 0);
-    const entries = Object.entries(byCategory).sort((a, b) => b[1] - a[1]);
-    const max = Math.max(1, ...entries.map(([, v]) => v));
-
-    container.querySelector('.flow-total-amount').textContent = formatCurrency(total);
-    const branches = container.querySelector('.flow-branches');
-    branches.innerHTML = entries
-      .map(
-        ([cat, amount]) => `
-        <div class="flow-branch">
-          <div class="flow-branch-track">
-            <div class="flow-branch-fill" style="width:${(amount / max) * 100}%"></div>
+  function renderTransactionModal(el, tx = null) {
+    if (tx) {
+      // Edit/View mode
+      el.innerHTML = `
+        <div class="modal-backdrop" aria-hidden="true"></div>
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3 class="modal-title">${escapeHtml(tx.merchant || 'Transaction Details')}</h3>
+            <button class="btn btn-icon modal-close" aria-label="Close">
+              <span class="btn-icon">×</span>
+            </button>
           </div>
-          <div class="flow-branch-meta">
-            <span class="flow-branch-name">${escapeHtml(cat.toUpperCase())}</span>
-            <span class="flow-branch-amount">${formatCurrency(amount)}</span>
+          <div class="modal-body">
+            <div class="transaction-detail">
+              <div class="detail-row">
+                <span class="detail-label">Amount</span>
+                <span class="detail-value transaction-amount ${tx.amount >= 0 ? 'positive' : 'negative'}">
+                  ${formatCurrency(Math.abs(tx.amount))}
+                </span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Date</span>
+                <span class="detail-value">${formatDate(tx.timestamp || tx.date)}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Category</span>
+                <span class="detail-value">${getCategoryLabel(tx.category)}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Notes</span>
+                <span class="detail-value">${escapeHtml(tx.notes || 'No notes')}</span>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button class="btn btn-outline" onclick="window.RoastMoneyApp.closeModal('transaction-modal')">Close</button>
+              ${window.RoastMoneyApp.state.isAuthenticated ?
+                `<button class="btn btn-accent" onclick="window.RoastMoneyApp.editTransaction('${tx.id}')">Edit</button>` :
+                ''
+              }
+            </div>
           </div>
-        </div>`
-      )
-      .join('');
+        </div>
+      `;
+    } else {
+      // Add mode
+      el.innerHTML = `
+        <div class="modal-backdrop" aria-hidden="true"></div>
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3 class="modal-title">Add New Transaction</h3>
+            <button class="btn btn-icon modal-close" aria-label="Close">
+              <span class="btn-icon">×</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <form id="transaction-form">
+              <div class="form-group">
+                <label class="form-label" for="tx-amount">Amount (₹)</label>
+                <input
+                  type="number"
+                  id="tx-amount"
+                  class="form-input"
+                  placeholder="Enter amount"
+                  required
+                  min="0.01"
+                  step="0.01"
+                >
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="tx-merchant">Merchant</label>
+                <input
+                  type="text"
+                  id="tx-merchant"
+                  class="form-input"
+                  placeholder="Where did you spend/receive money?"
+                  required
+                >
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="tx-category">Category</label>
+                <select id="tx-category" class="form-select" required>
+                  <option value="">Select a category</option>
+                  <option value="food_dining">Food & Dining</option>
+                  <option value="transportation">Transportation</option>
+                  <option value="shopping">Shopping</option>
+                  <option value="entertainment">Entertainment</option>
+                  <option value="bills_utilities">Bills & Utilities</option>
+                  <option value="healthcare">Healthcare</option>
+                  <option value="income">Income</option>
+                  <option value="transfer">Transfer</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="tx-notes">Notes (optional)</label>
+                <textarea
+                  id="tx-notes"
+                  class="form-textarea"
+                  placeholder="Add any additional details..."
+                  rows="3"
+                ></textarea>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="tx-date">Date</label>
+                <input
+                  type="date"
+                  id="tx-date"
+                  class="form-input"
+                  value="${new Date().toISOString().split('T')[0]}"
+                  required
+                >
+              </div>
+              <div class="form-group form-checkbox">
+                <label class="form-label">
+                  <input type="checkbox" id="tx-is-income" class="form-input">
+                  This is income (not an expense)
+                </label>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-outline" onclick="window.RoastMoneyApp.closeModal('transaction-modal')">Cancel</button>
+            <button class="btn btn-accent" id="tx-submit-btn">Add Transaction</button>
+          </div>
+        </div>
+      `;
+    }
   }
 
-  // ---- Achievements ----------------------------------------------------
+  // ---- Helper Functions ----------------------------------------------
 
-  function renderAchievements(container, achievements) {
-    container.innerHTML = achievements
-      .map((a) => {
-        if (a.hidden && !a.unlocked) {
-          return `
-          <li class="achievement is-hidden">
-            <span class="achievement-icon">?</span>
-            <p class="achievement-title">Hidden achievement</p>
-            <p class="achievement-desc">Keep spending to find out.</p>
-          </li>`;
-        }
-        return `
-        <li class="achievement ${a.unlocked ? 'is-unlocked' : ''}">
-          <span class="achievement-icon">${a.icon}</span>
-          <p class="achievement-title">${escapeHtml(a.title)}</p>
-          <p class="achievement-desc">${escapeHtml(a.description)}</p>
-          <div class="achievement-progress">
-            <div class="achievement-progress-fill" style="width:${Math.round(a.progress * 100)}%"></div>
-          </div>
-        </li>`;
-      })
-      .join('');
+  function getCategoryIcon(category) {
+    const icons = {
+      'food_dining': '🍽️',
+      'transportation': '🚗',
+      'shopping': '🛍️',
+      'entertainment': '🎬',
+      'bills_utilities': '💡',
+      'healthcare': '🏥',
+      'income': '💰',
+      'transfer': '🔄',
+      'other': '📦'
+    };
+    return icons[category] || '📄';
   }
 
-  // ---- Money Wrapped -----------------------------------------------------
+  function getCategoryLabel(category) {
+    const labels = {
+      'food_dining': 'Food & Dining',
+      'transportation': 'Transportation',
+      'shopping': 'Shopping',
+      'entertainment': 'Entertainment',
+      'bills_utilities': 'Bills & Utilities',
+      'healthcare': 'Healthcare',
+      'income': 'Income',
+      'transfer': 'Transfer',
+      'other': 'Other'
+    };
+    return labels[category] || category;
+  }
 
-  function buildWrappedSlides(data) {
-    const { total, topCategory, topCategoryAmount, questionable, worstHabitAmount, personality } = data;
-    return [
-      {
-        eyebrow: 'AUGUST 2026',
-        big: formatCurrency(total),
-        caption: 'You spent this much.',
-      },
-      {
-        eyebrow: 'YOUR BIGGEST CATEGORY',
-        big: topCategory.toUpperCase(),
-        caption: formatCurrency(topCategoryAmount),
-      },
-      {
-        eyebrow: 'YOUR MOST QUESTIONABLE PURCHASE',
-        big: formatCurrency(questionable.amount),
-        caption: `"${questionable.merchant}"`,
-      },
-      {
-        eyebrow: 'YOUR WORST HABIT',
-        big: formatCurrency(worstHabitAmount),
-        caption: 'Small purchases that somehow became this.',
-      },
-      {
-        eyebrow: 'YOUR SPENDING PERSONALITY',
-        big: personality ? personality.title : '—',
-        caption: personality ? personality.line : 'Add more transactions to unlock this.',
-      },
-      {
-        eyebrow: 'FINAL VERDICT',
-        big: 'FINANCIALLY? QUESTIONABLE.',
-        caption: 'Personally? Consistent.',
-      },
+  function getRandomRoastSnippet() {
+    const snippets = [
+      "Your spending habits need intervention.",
+      "Congratulations on funding someone else's lifestyle.",
+      "Your wallet is crying silently.",
+      "This isn't spending, it's financial self-sabotage.",
+      "Your bank account has trust issues.",
+      "You treat money like it's renewable.",
+      "Your spending pattern resembles a drunken sailor.",
+      "Financial advisor? More like financial enabler.",
+      "Your coffee habit could fund a small nation.",
+      "You're not broke, you're just poorly organized."
     ];
+    return snippets[Math.floor(Math.random() * snippets.length)];
   }
 
-  function renderWrappedSlide(container, slide, index, total) {
-    container.innerHTML = `
-      <p class="wrapped-eyebrow">${escapeHtml(slide.eyebrow)}</p>
-      <p class="wrapped-big">${escapeHtml(slide.big)}</p>
-      <p class="wrapped-caption">${escapeHtml(slide.caption)}</p>
+  function getRoastText(score) {
+    if (score >= 90) return "Your spending habits are financially reckless. Seek help.";
+    if (score >= 80) return "You spend like there's no tomorrow - and honestly, there might not be if you keep this up.";
+    if (score >= 70) return "Your spending patterns show concerning levels of financial impulsivity.";
+    if (score >= 60) return "You're spending more than you should be. Consider a budget.";
+    if (score >= 50) return "Your spending is average - which means there's plenty of room for improvement.";
+    if (score >= 40) return "You're doing okay, but you could be much better with your money.";
+    if (score >= 30) return "You're being reasonably responsible with your finances.";
+    if (score >= 20) return "You're quite good at managing your money. Keep it up!";
+    if (score >= 10) return "You're excellent with money. Most people wish they had your discipline.";
+    return "You're a financial wizard. Teach us your ways.";
+  }
+
+  function getStatusLabel(amount) {
+    if (amount > 0) return 'INCOME DETECTED';
+    if (amount < 0) return 'SPENDING DETECTED';
+    return 'NO ACTIVITY';
+  }
+
+  function getSpendingHealthLabel(score) {
+    if (score >= 80) return 'Excellent';
+    if (score >= 60) return 'Good';
+    if (score >= 40) return 'Fair';
+    return 'Needs Improvement';
+  }
+
+  function getTopCategory(transactions) {
+    if (!transactions || transactions.length === 0) return 'N/A';
+
+    const categoryTotals = {};
+    transactions.forEach(tx => {
+      if (!categoryTotals[tx.category]) categoryTotals[tx.category] = 0;
+      categoryTotals[tx.category] += Math.abs(tx.amount);
+    });
+
+    return Object.keys(categoryTotals).reduce((a, b) =>
+      categoryTotals[a] > categoryTotals[b] ? a : b
+    );
+  }
+
+  function generateFinancialForecast(transactions) {
+    if (!transactions || transactions.length < 5) {
+      return `
+        <p class="forecast-placeholder">
+          Keep tracking your transactions to see personalized financial forecasts.
+        </p>
+      `;
+    }
+
+    // Simple forecast based on recent trends
+    const recentTx = transactions.slice(0, 10);
+    const avgDailySpend = Math.abs(
+      recentTx
+        .filter(tx => tx.amount < 0)
+        .reduce((sum, tx) => sum + tx.amount, 0)
+    ) / Math.min(recentTx.length, 10);
+
+    const projectedMonthly = avgDailySpend * 30;
+
+    return `
+      <div class="forecast-content">
+        <div class="forecast-item">
+          <div class="forecast-label">Projected Monthly Spend</div>
+          <div class="forecast-value">${formatCurrency(projectedMonthly)}</div>
+        </div>
+        <div class="forecast-item">
+          <div class="forecast-label">Based on Last 10 Transactions</div>
+          <div class="forecast-value">Avg: ${formatCurrency(avgDailySpend)}/day</div>
+        </div>
+      </div>
     `;
-    container.dataset.index = index;
   }
 
-  function renderWrappedProgress(container, index, total) {
-    container.innerHTML = Array.from({ length: total })
-      .map((_, i) => `<span class="wrapped-progress-seg ${i <= index ? 'is-filled' : ''}"></span>`)
-      .join('');
+  function createCalendarHeatmap(transactions) {
+    const now = new Date();
+    const month = now.getMonth();
+    const year = now.getFullYear();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    // Group transactions by day
+    const dailyTotals = {};
+    transactions.forEach(tx => {
+      const txDate = new Date(tx.timestamp || tx.date);
+      const day = txDate.getDate();
+      if (!dailyTotals[day]) dailyTotals[day] = 0;
+      dailyTotals[day] += tx.amount;
+    });
+
+    // Find max for normalization
+    const amounts = Object.values(dailyTotals).filter(amount => amount !== 0);
+    const maxAmount = amounts.length > 0 ? Math.max(...amounts.map(Math.abs)) : 1;
+
+    let html = '<div class="heatmap-grid">';
+
+    // Add day headers
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    dayNames.forEach(day => {
+      html += `<div class="heatmap-day-header">${day}</div>`;
+    });
+
+    // Add calendar days
+    // First, add blank days for the start of the month
+    const firstDay = new Date(year, month, 1).getDay(); // 0 = Sunday
+    for (let i = 0; i < firstDay; i++) {
+      html += `<div class="heatmap-day empty"></div>`;
+    }
+
+    // Add each day of the month
+    for (let day = 1; day <= daysInMonth; day++) {
+      const amount = dailyTotals[day] || 0;
+      const intensity = amount !== 0 ? Math.min(100, Math.max(0, (Math.abs(amount) / maxAmount) * 100)) : 0;
+      const isToday = day === now.getDate() && month === now.getMonth() && year === now.getFullYear();
+
+      html += `
+        <div
+          class="heatmap-day ${isToday ? 'today' : ''}"
+          data-day="${day}"
+          data-amount="${amount}"
+          style="background-color: var(--color-bg-surface);"
+        >
+          <div class="heatmap-day-number">${day}</div>
+          ${amount !== 0 ?
+            `<div class="heatmap-day-intensity" style="height: ${intensity}%; background: linear-gradient(to top, var(--color-bg-surface), ${getHeatmapColor(amount)});"></div>` :
+            ''
+          }
+          ${amount !== 0 ?
+            `<div class="heatmap-day-tooltip">${formatCurrency(Math.abs(amount))}</div>` :
+            ''
+          }
+        </div>
+      `;
+    }
+
+    html += '</div>';
+
+    // Add legend
+    html += `
+      <div class="heatmap-legend">
+        <div class="heatmap-legend-item">
+          <div class="heatmap-legend-color" style="background: var(--color-status-calm);"></div>
+          <span>Low Spending</span>
+        </div>
+        <div class="heatmap-legend-item">
+          <div class="heatmap-legend-color" style="background: var(--color-status-concerning);"></div>
+          <span>Moderate Spending</span>
+        </div>
+        <div class="heatmap-legend-item">
+          <div class="heatmap-legend-color" style="background: var(--color-status-severe);"></div>
+          <span>High Spending</span>
+        </div>
+      </div>
+    `;
+
+    return html;
   }
 
+  function getHeatmapColor(amount) {
+    if (amount >= 0) return 'var(--color-status-calm)'; // Income/green
+    const absAmount = Math.abs(amount);
+    if (absAmount < 1000) return 'var(--color-status-concerning)'; // Low spending
+    if (absAmount < 5000) return 'var(--color-status-severe)'; // Medium spending
+    return 'var(--color-error)'; // High spending
+  }
+
+  // Public API
   return {
     escapeHtml,
     formatCurrency,
@@ -332,18 +602,30 @@ const UI = (() => {
     formatDate,
     statusClass,
     renderHeroReceipt,
-    walletMoodFromIntensity,
-    renderTransactionList,
-    renderTransactionDetail,
-    setActiveStep,
-    runLoadingSequence,
-    renderPersonalityReveal,
-    buildHeatmapDays,
-    renderHeatmap,
-    renderFlow,
-    renderAchievements,
-    buildWrappedSlides,
-    renderWrappedSlide,
-    renderWrappedProgress,
+    renderHealthCard,
+    renderHealthMeter,
+    renderChartPlaceholder,
+    renderTransactionItem,
+    renderEmptyTransactions,
+    renderRoastInsight,
+    renderPersonalityInsight,
+    renderForecastInsight,
+    renderAchievementsInsight,
+    renderWrappedPreview,
+    renderCalendarHeatmap,
+    renderTransactionModal,
+    getCategoryIcon,
+    getCategoryLabel,
+    getRandomRoastSnippet,
+    getRoastText,
+    getStatusLabel,
+    getSpendingHealthLabel,
+    getTopCategory,
+    generateFinancialForecast,
+    createCalendarHeatmap,
+    getHeatmapColor
   };
 })();
+
+// Make UI globally accessible
+window.UI = UI;

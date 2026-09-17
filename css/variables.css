@@ -1,93 +1,178 @@
 /* ==========================================================================
-   ROAST.MONEY — Design Tokens
+   ROAST.MONEY — Design Tokens (Elevated 2026 Fintech)
    ========================================================================== */
 
+/* Color System: Premium, accessible, with purpose */
 :root {
-  /* ---- Color: base ---- */
-  --color-bg: #121110;
-  --color-bg-raised: #1A1815;
-  --color-bg-sunken: #0B0A09;
-  --color-paper: #F6F1E7;         /* warm white, "receipt paper" */
-  --color-paper-dim: #D9D2C2;
-  --color-ink: #F6F1E7;           /* primary text on dark */
-  --color-ink-dim: #A79E8C;       /* secondary text on dark */
-  --color-ink-faint: #6E6759;     /* tertiary text on dark */
-  --color-border: #2C2A25;
-  --color-border-strong: #3E3B33;
+  /* ---- Core Neutrals (Accessible, sophisticated) ---- */
+  --color-bg: #0a0a0a;                /* Deep space black */
+  --color-bg-surface: #111111;        /* Elevated surface */
+  --color-bg-surface-variant: #1a1a1a; /* Slightly lighter surface */
+  --color-bg-overlay: rgba(17, 17, 17, 0.8); /* For modals, drawers */
+  --color-bg-elevated: #181818;       /* Cards, elevated elements */
+  --color-bg-input: #1f1f1f;          /* Input backgrounds */
 
-  /* ---- Color: brand accent (Warning Amber — the ledger stamp) ---- */
-  --color-accent: #FFB800;
-  --color-accent-dim: #C79000;
-  --color-accent-ink: #1C1500;    /* text placed on top of accent */
+  /* Text on surfaces */
+  --color-on-bg: #ffffff;             /* Primary text */
+  --color-on-bg-variant: #e0e0e0;     /* Secondary text */
+  --color-on-bg-dim: #a0a0a0;         /* Tertiary text, hints */
+  --color-on-bg-inverse: #0a0a0a;     /* Text on accent surfaces */
 
-  /* ---- Color: status ---- */
-  --color-status-calm: #7FBF8F;
-  --color-status-concerning: #E8483C;
-  --color-status-severe: #FF6A3D;
+  /* Brand: Elevated Amber with purpose */
+  --color-brand-primary: #ffb300;     /* Warm, trustworthy amber */
+  --color-brand-primary-dim: #e6a100; /* Hover/pressed state */
+  --color-brand-primary-dark: #cc8f00; /* Active state */
+  --color-brand-on-primary: #000000;  /* Text on brand */
 
-  /* ---- Typography ---- */
+  /* Status & Feedback: Clear, actionable */
+  --color-success: #34c759;           /* Confirmed, positive */
+  --color-success-dim: #2fb04e;
+  --color-warning: #ff9500;           /* Attention needed */
+  --color-warning-dim: #e68600;
+  --color-error: #ff3b30;             /* Critical, blocking */
+  --color-error-dim: #e6332a;
+  --color-info: #5ac8fa;              /* Informational */
+  --color-info-dim: #4fb6e5;
+
+  /* Data Visualization: Purpose-built palette */
+  --color-data-1: #ff6b6b;            /* Spending/outflow */
+  --color-data-2: #4ecdc4;            /* Income/inflow */
+  --color-data-3: #45b7d1;            /* Savings/goals */
+  --color-data-4: #96ceb4;            /* Investments */
+  --color-data-5: #feca57;            /* Entertainment */
+  --color-data-6: #ff9ff3;            /* Shopping */
+  --color-data-bg: rgba(255, 255, 255, 0.05); /* Chart backgrounds */
+
+  /* Interactive States */
+  --color-hover: rgba(255, 255, 255, 0.04);
+  --color-press: rgba(255, 255, 255, 0.08);
+  --color-focus: rgba(255, 179, 0, 0.25);
+  --color-selected: rgba(255, 179, 0, 0.12);
+
+  /* Borders & Dividers: Subtle definition */
+  --color-border: #2a2a2a;
+  --color-border-muted: #1f1f1f;
+  --color-border-strong: #3a3a3a;
+  --color-divider: rgba(255, 255, 255, 0.1);
+  --color-divider-light: rgba(255, 255, 255, 0.05);
+
+  /* Shadows: Layered, realistic depth */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
+  --shadow-inner: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+
+  /* Typography: Hierarchical, readable, premium */
   --font-display: 'Fraunces', 'Iowan Old Style', Georgia, serif;
-  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-heading: 'Inter var', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-body: 'Inter var', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-mono: 'IBM Plex Mono', 'SFMono-Regular', Menlo, monospace;
+  --font-numbers: 'IBM Plex Mono', 'SFMono-Regular', Menlo, monospace;
 
-  --fs-display-xl: clamp(2.7rem, 5vw, 5rem);
-  --fs-display-lg: clamp(2.1rem, 3.7vw, 3.2rem);
-  --fs-display-md: clamp(1.5rem, 2.6vw, 2.2rem);
-  --fs-heading: clamp(1.1rem, 1.7vw, 1.5rem);
-  --fs-body-lg: 1rem;
-  --fs-body: 0.96rem;
-  --fs-small: 0.8rem;
-  --fs-micro: 0.7rem;
+  /* Display & Heading Scale */
+  --fs-display: clamp(3rem, 6vw, 4.5rem);        /* Hero, major sections */
+  --fs-heading-xl: clamp(2.25rem, 4vw, 3rem);    /* Section titles */
+  --fs-heading-lg: clamp(1.875rem, 3vw, 2.25rem); /* Subsection titles */
+  --fs-heading-md: clamp(1.5rem, 2.5vw, 1.75rem); /* Card titles */
+  --fs-heading-sm: clamp(1.25rem, 2vw, 1.5rem);  /* Item headers */
 
-  --lh-tight: 1.04;
-  --lh-snug: 1.2;
-  --lh-normal: 1.45;
-  --lh-loose: 1.65;
+  /* Body Scale */
+  --fs-body-lg: 1.125rem;     /* 18px */
+  --fs-body: 1rem;            /* 16px */
+  --fs-body-sm: 0.875rem;     /* 14px */
+  --fs-body-xs: 0.75rem;      /* 12px */
+  --fs-numbers: 0.875rem;     /* For consistent number alignment */
 
-  --ls-tight: -0.02em;
+  /* Line Heights: Optimized for readability */
+  --lh-tight: 1.2;
+  --lh-snug: 1.3;
+  --lh-normal: 1.5;
+  --lh-relaxed: 1.6;
+  --lh-loose: 1.8;
+
+  /* Letter Spacing: Intentional */
+  --ls-tight: -0.025em;
   --ls-normal: 0;
-  --ls-wide: 0.06em;
-  --ls-wider: 0.14em;
+  --ls-wide: 0.05em;
+  --ls-wider: 0.1em;
 
-  /* ---- Spacing scale (8px base) ---- */
-  --space-1: 0.4rem;
-  --space-2: 0.8rem;
-  --space-3: 1.1rem;
-  --space-4: 1.4rem;
-  --space-5: 2rem;
-  --space-6: 2.7rem;
-  --space-7: 3.8rem;
-  --space-8: 5.2rem;
-  --space-9: 7.4rem;
+  /* Spacing: 4px base scale for precision */
+  --space-0: 0rem;
+  --space-0-5: 0.125rem;   /* 2px */
+  --space-1: 0.25rem;      /* 4px */
+  --space-1-5: 0.375rem;   /* 6px */
+  --space-2: 0.5rem;       /* 8px */
+  --space-2-5: 0.75rem;    /* 12px */
+  --space-3: 1rem;         /* 16px */
+  --space-3-5: 1.25rem;    /* 20px */
+  --space-4: 1.5rem;       /* 24px */
+  --space-4-5: 1.75rem;    /* 28px */
+  --space-5: 2rem;         /* 32px */
+  --space-6: 2.5rem;       /* 40px */
+  --space-7: 3rem;         /* 48px */
+  --space-8: 3.5rem;       /* 56px */
+  --space-9: 4rem;         /* 64px */
+  --space-10: 4.5rem;      /* 72px */
+  --space-11: 5rem;        /* 80px */
+  --space-12: 6rem;        /* 96px */
 
-  /* ---- Radii ---- */
+  /* Radii: Refined, purposeful */
   --radius-none: 0;
-  --radius-sm: 4px;
-  --radius-md: 10px;
-  --radius-pill: 999px;
+  --radius-xs: 0.125rem;   /* 2px */
+  --radius-sm: 0.25rem;    /* 4px */
+  --radius-md: 0.375rem;   /* 6px */
+  --radius-lg: 0.5rem;     /* 8px */
+  --radius-xl: 0.75rem;    /* 12px */
+  --radius-2xl: 1rem;      /* 16px */
+  --radius-full: 9999px;   /* Pills */
 
-  /* ---- Shadows (used sparingly, on floating receipt only) ---- */
-  --shadow-float: 0 20px 60px -20px rgba(0, 0, 0, 0.55);
-  --shadow-lift: 0 8px 24px -12px rgba(0, 0, 0, 0.4);
+  /* Transitions: Purposeful, not excessive */
+  --dur-micro: 75ms;
+  --dur-short: 100ms;
+  --dur-standard: 150ms;
+  --dur-long: 250ms;
+  --dur-slow: 350ms;
 
-  /* ---- Motion ---- */
-  --ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
-  --ease-sharp: cubic-bezier(0.6, 0, 0.2, 1);
-  --dur-micro: 160ms;
-  --dur-standard: 340ms;
-  --dur-dramatic: 700ms;
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --ease-accelerate: cubic-bezier(0.7, 0, 0.9, 0.3);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.6, 1);
+  --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
 
-  /* ---- Layout ---- */
-  --container-max: 1240px;
-  --container-pad: clamp(1.5rem, 4vw, 3.5rem);
-  --nav-height: 76px;
-  --hairline: 1px solid var(--color-border);
+  /* Z-index: Layered architecture */
+  --z-index-drawer: 1000;
+  --z-index-modal: 1100;
+  --z-index-popover: 1200;
+  --z-index-toast: 1300;
+  --z-index-tooltip: 1400;
 }
 
-@media (max-width: 480px) {
+/* Dark mode is default, but we'll support system preference */
+@media (prefers-color-scheme: light) {
   :root {
-    --space-7: 3.2rem;
-    --space-8: 4.4rem;
-    --space-9: 6rem;
+    /* Light mode variants - keep the personality but elevate */
+    --color-bg: #fafafa;
+    --color-bg-surface: #ffffff;
+    --color-bg-surface-variant: #f8f9fa;
+    --color-bg-overlay: rgba(255, 255, 255, 0.85);
+    --color-bg-elevated: #ffffff;
+    --color-bg-input: #f8f9fa;
+
+    --color-on-bg: #1a1a1a;
+    --color-on-bg-variant: #495057;
+    --color-on-bg-dim: #6c757d;
+    --color-on-bg-inverse: #ffffff;
+
+    --color-border: #dee2e6;
+    --color-border-muted: #e9ecef;
+    --color-border-strong: #ced4da;
+    --color-divider: rgba(0, 0, 0, 0.12);
+    --color-divider-light: rgba(0, 0, 0, 0.06);
+
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.08);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.05);
   }
 }
