@@ -1,6 +1,6 @@
-/* ==========================================================================
+/* 
    ROAST.MONEY — Components (Elevated 2026 Fintech)
-   ========================================================================== */
+    /* 
 
 /* ---- Buttons ------------------------------------------------------- */
 
@@ -104,7 +104,7 @@
 
 .btn-icon {
   padding: var(--space-1);
-  border-radius: var-radius-sm);
+  border-radius: (var-radius-sm);
   background-color: var(--color-bg-surface);
   color: var(--color-on-bg-variant);
   font-size: var(--fs-body);
