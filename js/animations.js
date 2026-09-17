@@ -95,5 +95,59 @@ const Motion = (() => {
     stepEls.forEach((el) => observer.observe(el));
   }
 
-  return { countUp, initScrollReveal, initMagnetic, initNavScrollState, initScrollSequence, reduced };
+  return { countUp, initScrollReveal, initMagnetic, initNavScrollState, initScrollSequence, reduced, initNav };
+
+function initNav() {
+  const nav = document.getElementById('nav');
+  if (!nav) return;
+
+  // Initialize nav scroll state
+  initNavScrollState(nav);
+
+  // Add click handlers for nav links
+  const navLinks = nav.querySelectorAll('.nav-link');
+  navLinks.forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      const href = link.getAttribute('href');
+      if (href && href.startsWith('#')) {
+        const sectionId = href.substring(1);
+        window.RoastMoneyApp?.scrollToSection?.(sectionId);
+      }
+    });
+  });
+
+  // Add click handler for auth toggle
+  const authToggle = nav.querySelector('.nav-auth-toggle');
+  if (authToggle) {
+    authToggle.addEventListener('click', () => {
+      if (window.RoastMoneyApp?.state?.isAuthenticated) {
+        // Show account menu or settings
+        window.RoastMoneyApp?.scrollToSection?.('settings');
+      } else {
+        // Show auth modal
+        const authContainer = document.getElementById('auth-container');
+        if (authContainer && window.AuthUI) {
+          window.AuthUI.renderForms();
+        }
+      }
+    });
+  }
+
+  // Add click handlers for hero CTA buttons
+  const heroCta = document.getElementById('hero-cta');
+  const heroTour = document.getElementById('hero-tour');
+  if (heroCta) {
+    heroCta.addEventListener('click', () => {
+      if (window.RoastMoneyApp?.showAddTransactionModal) {
+        window.RoastMoneyApp.showAddTransactionModal();
+      }
+    });
+  }
+  if (heroTour) {
+    heroTour.addEventListener('click', () => {
+      window.RoastMoneyApp?.scrollToSection?.('insights');
+    });
+  }
+}
 })();

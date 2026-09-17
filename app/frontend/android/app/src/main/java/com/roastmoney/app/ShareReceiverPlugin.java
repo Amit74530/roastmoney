@@ -1,0 +1,357 @@
+package com.roastmoney.app;
+
+import android.content.ContentResolver;
+import android.content.Intent;
+import android.database.Cursor;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Matrix;
+import android.media.ExifInterface;
+import android.net.Uri;
+import android.os.Build;
+import android.provider.OpenableColumns;
+import android.util.Log;
+import android.webkit.MimeTypeMap;
+import com.getcapacitor.JSObject;
+import com.getcapacitor.Plugin;
+import com.getcapacitor.PluginCall;
+import com.getcapacitor.PluginMethod;
+import com.getcapacitor.annotation.CapacitorPlugin;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.Locale;
+import java.util.UUID;
+
+/**
+ * Receives Android ACTION_SEND image shares and exposes them to the Capacitor WebView.
+ * Incoming content URIs are copied into app cache so the grant does not need to persist
+ * and no broad storage permission is required.
+ */
+@CapacitorPlugin(name = "ShareReceiver")
+public class ShareReceiverPlugin extends Plugin {
+
+    private static final String EVENT_SHARE_RECEIVED = "shareReceived";
+    private static final String HANDLED_EXTRA = "roastscan_handled";
+    private static final long MAX_BYTES = 25L * 1024L * 1024L;
+    private static final int MAX_UPLOAD_BYTES = 900_000;
+
+    private JSObject pendingShare;
+
+    @Override
+    protected void handleOnStart() {
+        if (getActivity() != null) {
+            handleLaunchIntent(getActivity().getIntent());
+        }
+    }
+
+    @Override
+    protected void handleOnNewIntent(Intent intent) {
+        handleLaunchIntent(intent);
+    }
+
+    private void handleLaunchIntent(Intent intent) {
+        if (intent == null || !Intent.ACTION_SEND.equals(intent.getAction())) {
+            return;
+        }
+        if (intent.getBooleanExtra(HANDLED_EXTRA, false)) {
+            return;
+        }
+        intent.putExtra(HANDLED_EXTRA, true);
+        handleShareIntent(intent);
+    }
+
+    @PluginMethod
+    public void getPendingShare(PluginCall call) {
+        if (pendingShare == null) {
+            JSObject empty = new JSObject();
+            empty.put("received", false);
+            call.resolve(empty);
+            return;
+        }
+        call.resolve(pendingShare);
+    }
+
+    @PluginMethod
+    public void clearPendingShare(PluginCall call) {
+        pendingShare = null;
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void readPendingShareForUpload(PluginCall call) {
+        execute(() -> {
+            JSObject pending = pendingShare;
+            if (pending == null || !Boolean.TRUE.equals(pending.getBoolean("received", false))) {
+                call.reject("No shared image is available.");
+                return;
+            }
+
+            String path = pending.getString("path");
+            if (path == null || path.isEmpty()) {
+                call.reject("The shared image path is missing.");
+                return;
+            }
+
+            try {
+                File file = new File(path);
+                byte[] jpeg = compressForUpload(file);
+                if (jpeg == null || jpeg.length == 0) {
+                    call.reject("The shared image could not be prepared for scanning.");
+                    return;
+                }
+                Log.i("RoastScan", "upload jpeg bytes=" + jpeg.length);
+
+                File uploadFile = new File(file.getParentFile(), pending.getString("id") + "-upload.jpg");
+                try (FileOutputStream out = new FileOutputStream(uploadFile)) {
+                    out.write(jpeg);
+                }
+
+                JSObject result = new JSObject();
+                result.put("id", pending.getString("id"));
+                result.put("received", true);
+                result.put("mimeType", "image/jpeg");
+                result.put("fileName", pending.getString("fileName"));
+                result.put("path", uploadFile.getAbsolutePath());
+                call.resolve(result);
+            } catch (Exception exception) {
+                call.reject("The shared image could not be prepared for scanning.");
+            }
+        });
+    }
+
+    private void handleShareIntent(Intent intent) {
+        if (intent == null || !Intent.ACTION_SEND.equals(intent.getAction())) {
+            return;
+        }
+
+        execute(() -> {
+            JSObject payload = copySharedImage(intent);
+            pendingShare = payload;
+            notifyListeners(EVENT_SHARE_RECEIVED, payload, true);
+        });
+    }
+
+    private JSObject copySharedImage(Intent intent) {
+        String id = UUID.randomUUID().toString();
+        String declaredType = intent.getType();
+        Uri uri = readStreamUri(intent);
+
+        if (uri == null) {
+            return errorPayload(id, "missing_stream", "No shared image was attached.");
+        }
+
+        ContentResolver resolver = getContext().getContentResolver();
+        String mimeType = resolver.getType(uri);
+        if (mimeType == null || mimeType.isEmpty()) {
+            mimeType = declaredType;
+        }
+        if (mimeType == null || !mimeType.toLowerCase(Locale.US).startsWith("image/")) {
+            return errorPayload(id, "unsupported_type", "ROAST.MONEY can only receive shared images.");
+        }
+
+        try {
+            tryTakeReadPermission(uri);
+            String displayName = queryDisplayName(resolver, uri);
+            File destDir = new File(getContext().getCacheDir(), "roastscan");
+            if (!destDir.exists() && !destDir.mkdirs()) {
+                return errorPayload(id, "unreadable", "Could not prepare a local copy of the shared image.");
+            }
+
+            String extension = extensionFor(mimeType, displayName, uri);
+            File dest = new File(destDir, id + extension);
+
+            try (InputStream in = resolver.openInputStream(uri); OutputStream out = new FileOutputStream(dest)) {
+                if (in == null) {
+                    return errorPayload(id, "unreadable", "The shared image could not be opened.");
+                }
+                byte[] buffer = new byte[8192];
+                long total = 0;
+                int read;
+                while ((read = in.read(buffer)) != -1) {
+                    total += read;
+                    if (total > MAX_BYTES) {
+                        dest.delete();
+                        return errorPayload(id, "too_large", "The shared image is too large to open.");
+                    }
+                    out.write(buffer, 0, read);
+                }
+                if (total == 0) {
+                    dest.delete();
+                    return errorPayload(id, "unreadable", "The shared image was empty.");
+                }
+            }
+
+            JSObject payload = new JSObject();
+            payload.put("id", id);
+            payload.put("received", true);
+            payload.put("mimeType", mimeType);
+            payload.put("fileName", displayName != null ? displayName : dest.getName());
+            payload.put("path", dest.getAbsolutePath());
+            return payload;
+        } catch (SecurityException securityException) {
+            return errorPayload(id, "unreadable", "Permission to read the shared image was denied.");
+        } catch (Exception exception) {
+            return errorPayload(id, "unreadable", "The shared image could not be opened.");
+        }
+    }
+
+    private Uri readStreamUri(Intent intent) {
+        Uri uri;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            uri = intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri.class);
+        } else {
+            uri = intent.getParcelableExtra(Intent.EXTRA_STREAM);
+        }
+        if (uri == null && intent.getClipData() != null && intent.getClipData().getItemCount() > 0) {
+            uri = intent.getClipData().getItemAt(0).getUri();
+        }
+        return uri;
+    }
+
+    private void tryTakeReadPermission(Uri uri) {
+        try {
+            getContext()
+                .getContentResolver()
+                .takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        } catch (SecurityException | IllegalArgumentException ignored) {
+            // Share grants are often one-shot; the cache copy is the durable copy.
+        }
+    }
+
+    private String queryDisplayName(ContentResolver resolver, Uri uri) {
+        try (Cursor cursor = resolver.query(uri, new String[] { OpenableColumns.DISPLAY_NAME }, null, null, null)) {
+            if (cursor != null && cursor.moveToFirst()) {
+                int index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                if (index >= 0) {
+                    return cursor.getString(index);
+                }
+            }
+        } catch (Exception ignored) {
+            // Fall back to the URI segment below.
+        }
+        return uri.getLastPathSegment();
+    }
+
+    private String extensionFor(String mimeType, String displayName, Uri uri) {
+        String ext = MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType);
+        if (ext != null && !ext.isEmpty()) {
+            return "." + ext;
+        }
+        String source = displayName != null ? displayName : uri.getLastPathSegment();
+        if (source != null) {
+            int dot = source.lastIndexOf('.');
+            if (dot >= 0 && dot < source.length() - 1) {
+                String maybe = source.substring(dot);
+                if (maybe.length() <= 5) {
+                    return maybe;
+                }
+            }
+        }
+        return ".img";
+    }
+
+    private byte[] compressForUpload(File file) {
+        BitmapFactory.Options bounds = new BitmapFactory.Options();
+        bounds.inJustDecodeBounds = true;
+        BitmapFactory.decodeFile(file.getAbsolutePath(), bounds);
+
+        int sample = 1;
+        int maxDim = Math.max(bounds.outWidth, bounds.outHeight);
+        while (maxDim / sample > 2560 && sample < 16) {
+            sample *= 2;
+        }
+
+        BitmapFactory.Options opts = new BitmapFactory.Options();
+        opts.inSampleSize = Math.max(sample, 1);
+        Bitmap decoded = BitmapFactory.decodeFile(file.getAbsolutePath(), opts);
+        if (decoded == null) {
+            return null;
+        }
+
+        Bitmap working = flattenAndOrient(decoded, file);
+        if (working != decoded) {
+            decoded.recycle();
+        }
+        try {
+            int quality = 90;
+            byte[] data = encodeJpeg(working, quality);
+            while (data != null && data.length > MAX_UPLOAD_BYTES && quality > 70) {
+                quality -= 5;
+                data = encodeJpeg(working, quality);
+            }
+            if (data != null && data.length > MAX_UPLOAD_BYTES) {
+                float scale = (float) Math.min(0.85, Math.sqrt((double) MAX_UPLOAD_BYTES / data.length));
+                int width = Math.max(1, Math.round(working.getWidth() * scale));
+                int height = Math.max(1, Math.round(working.getHeight() * scale));
+                Bitmap smaller = Bitmap.createScaledBitmap(working, width, height, true);
+                if (smaller != working) {
+                    working.recycle();
+                    working = smaller;
+                }
+                data = encodeJpeg(working, 80);
+            }
+            return data;
+        } finally {
+            working.recycle();
+        }
+    }
+
+    private Bitmap flattenAndOrient(Bitmap bitmap, File file) {
+        Bitmap oriented = applyExif(bitmap, file);
+        if (!oriented.hasAlpha()) {
+            return oriented;
+        }
+        Bitmap opaque = Bitmap.createBitmap(oriented.getWidth(), oriented.getHeight(), Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(opaque);
+        canvas.drawColor(Color.WHITE);
+        canvas.drawBitmap(oriented, 0, 0, null);
+        if (oriented != bitmap) {
+            oriented.recycle();
+        }
+        return opaque;
+    }
+
+    private Bitmap applyExif(Bitmap bitmap, File file) {
+        try {
+            ExifInterface exif = new ExifInterface(file.getAbsolutePath());
+            int orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL);
+            int degrees = 0;
+            if (orientation == ExifInterface.ORIENTATION_ROTATE_90) {
+                degrees = 90;
+            } else if (orientation == ExifInterface.ORIENTATION_ROTATE_180) {
+                degrees = 180;
+            } else if (orientation == ExifInterface.ORIENTATION_ROTATE_270) {
+                degrees = 270;
+            } else {
+                return bitmap;
+            }
+            Matrix matrix = new Matrix();
+            matrix.postRotate(degrees);
+            return Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
+        } catch (Exception ignored) {
+            return bitmap;
+        }
+    }
+
+    private byte[] encodeJpeg(Bitmap bitmap, int quality) {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        if (!bitmap.compress(Bitmap.CompressFormat.JPEG, quality, out)) {
+            return null;
+        }
+        return out.toByteArray();
+    }
+
+    private JSObject errorPayload(String id, String code, String message) {
+        JSObject payload = new JSObject();
+        payload.put("id", id);
+        payload.put("received", false);
+        payload.put("error", code);
+        payload.put("message", message);
+        return payload;
+    }
+}
