@@ -176,14 +176,21 @@ export async function deleteUserTransaction(userId, transactionId) {
     throw new Error('Missing user or transaction information.')
   }
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('transactions')
     .delete()
     .eq('id', transactionId)
     .eq('user_id', userId)
+    .select('id')
 
   if (error) {
     console.error('[Transactions] deleteUserTransaction failed:', error)
     throw error
+  }
+
+  if (!Array.isArray(data) || data.length === 0) {
+    throw new Error(
+      'This transaction could not be deleted. It may have already been removed, or you may not have permission.',
+    )
   }
 }

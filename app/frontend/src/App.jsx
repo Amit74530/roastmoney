@@ -1,10 +1,11 @@
 ﻿import { useEffect, useState } from 'react'
 import { BrowserRouter, Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
-import { Activity, ArrowRight, BarChart3, Bell, CircleDollarSign, Home, LogOut, Menu, Moon, Plus, Settings as SettingsIcon, Sparkles, SunMedium, Trophy, UserRound, X } from 'lucide-react'
+import { Activity, ArrowRight, BarChart3, Bell, CircleDollarSign, Home, LogOut, Menu, Moon, Plus, Settings as SettingsIcon, Sparkles, SunMedium, Trophy, UserRound, Wallet, X } from 'lucide-react'
 import { demoData } from './data/demoData'
 import { supabase } from './lib/supabaseClient'
 import { fetchUserTransactions, createUserTransaction, updateUserTransaction, deleteUserTransaction } from './lib/transactionService'
 import { generateExpenseRoast } from './lib/engines/insights'
+import { fetchUserBudgets } from './lib/budgetService'
 import { clearUser, getPreferences, getUser, savePreferences, saveUser, subscribePreferences } from './utils/storage'
 import DashboardPage from './pages/Dashboard'
 import AnalyticsPage from './pages/Analytics'
@@ -12,6 +13,7 @@ import PersonalityPage from './pages/Personality'
 import AchievementsPage from './pages/Achievements'
 import WrappedPage from './pages/Wrapped'
 import RoastScanPage from './pages/RoastScan'
+import BudgetsPage from './pages/Budgets'
 import TransactionManager from './components/TransactionManager'
 import RoastScanShareGate from './components/RoastScanShareGate'
 import BrandLogo from './components/BrandLogo'
@@ -22,6 +24,7 @@ const sidebarItems = [
   ['/dashboard', 'Home', Home],
   ['/transactions', 'Activity', Activity],
   ['/analytics', 'Insights', BarChart3],
+  ['/budgets', 'Budgets', Wallet],
   ['/personality', 'Roast', Sparkles],
   ['/achievements', 'Achievements', Trophy],
   ['/wrapped', 'Wrapped', CircleDollarSign],
@@ -31,6 +34,7 @@ const pageTitles = {
   '/dashboard': 'Home',
   '/transactions': 'Activity',
   '/analytics': 'Insights',
+  '/budgets': 'Budgets',
   '/personality': 'Roast',
   '/achievements': 'Achievements',
   '/wrapped': 'Wrapped',
@@ -203,10 +207,17 @@ function Shell({ children }) {
   }), [])
 
   useEffect(() => {
-    if (sessionStorage.getItem('roastmoney-add-hint-seen')) return undefined
-    const hintTimer = window.setTimeout(() => setShowAddHint(true), 4500)
-    return () => window.clearTimeout(hintTimer)
-  }, [])
+  if (sessionStorage.getItem('roastmoney-add-hint-seen')) return undefined
+  const showTimer = window.setTimeout(() => setShowAddHint(true), 4500)
+  const hideTimer = window.setTimeout(() => {
+    setShowAddHint(false)
+    sessionStorage.setItem('roastmoney-add-hint-seen', 'true')
+  }, 10500)
+  return () => {
+    window.clearTimeout(showTimer)
+    window.clearTimeout(hideTimer)
+  }
+}, [])
 
   useEffect(() => {
     if (!addNotice) return undefined
@@ -379,8 +390,68 @@ function App() {
   const [transactions, setTransactions] = useState([])
   const [transactionsLoading, setTransactionsLoading] = useState(false)
   const [transactionsError, setTransactionsError] = useState('')
+  const [budgets, setBudgets] = useState([])
   const [session, setSession] = useState(null)
   const [authReady, setAuthReady] = useState(false)
+
+  useEffect(() => {
+    if (!session?.user) {
+      setBudgets([])
+      return undefined
+    }
+    let active = true
+    fetchUserBudgets(session.user.id)
+      .then((rows) => {
+        if (active) setBudgets(rows)
+      })
+      .catch((error) => {
+        console.error('[App] Failed to fetch budgets:', error)
+        if (active) setBudgets([])
+      })
+    return () => {
+      active = false
+    }
+  }, [session])
+
+useEffect(() => {
+  // Only run on native Android and when we have a logged-in user
+  if (!isNativeCaptureAvailable() || !session?.user) return
+
+  let listenerHandle = null
+
+  const setupListener = async () => {
+    try {
+      // Request permission (opens settings if needed)
+      const perm = await TransactionCapture.isEnabled()
+      if (!perm.enabled) {
+        // You could show a prompt here to ask the user to open settings
+        console.log('[App] Notification listener permission not granted.')
+        return
+      }
+
+      // Add the listener
+      listenerHandle = await TransactionCapture.addListener('notificationCaptured', (event) => {
+        console.log('[App] Received captured notification:', event)
+        // Process the notification and save it to Supabase
+        processCapturedNotification(event, session.user.id)
+      })
+      console.log('[App] Transaction capture listener registered.')
+
+    } catch (error) {
+      console.error('[App] Failed to set up transaction capture listener:', error)
+    }
+  }
+
+  setupListener()
+
+  // Cleanup listener when the component unmounts or session changes
+  return () => {
+    if (listenerHandle) {
+      listenerHandle.remove()
+      console.log('[App] Transaction capture listener removed.')
+    }
+  }
+}, [session])
 
   useEffect(() => {
     if (!session?.user) {
@@ -454,7 +525,11 @@ function App() {
     }
     try {
       const created = await createUserTransaction(session.user.id, payload)
-      const subject = { ...created[0], time: payload.time || created[0].time }
+      const createdRow = created?.[0]
+      if (!createdRow) {
+        throw new Error('The transaction was saved but no row was returned. Refresh to see your ledger.')
+      }
+      const subject = { ...createdRow, time: payload.time || createdRow.time }
       const roast = subject.type === 'expense'
         ? generateExpenseRoast(subject, transactions, getPreferences().intensity)
         : null
@@ -478,10 +553,18 @@ function App() {
   }
 
   const handleUpdateTransaction = async (transactionId, payload) => {
-    if (!session?.user) return
+    if (!session?.user) {
+      throw new Error('You must be signed in to update a transaction.')
+    }
     try {
       const updated = await updateUserTransaction(session.user.id, transactionId, payload)
-      setTransactions((current) => current.map((item) => item.id === transactionId ? updated[0] : item))
+      const updatedRow = updated?.[0]
+      if (!updatedRow) {
+        throw new Error('The update returned no row. The transaction may have been removed.')
+      }
+      setTransactions((current) =>
+        current.map((item) => (item.id === transactionId ? updatedRow : item)),
+      )
       return updated
     } catch (error) {
       console.error('[App] updateUserTransaction failed:', error)
@@ -498,13 +581,20 @@ function App() {
         <Route path="*" element={
           <Protected isAuthenticated={Boolean(session)} authReady={authReady}>
             <Routes>
-              <Route path="/dashboard" element={<DashboardPage transactions={transactions} onAdd={handleAddTransaction} />} />
+              <Route path="/dashboard" element={<DashboardPage transactions={transactions} budgets={budgets} onAdd={handleAddTransaction} />} />
               <Route path="/transactions" element={<TransactionManager transactions={transactions} setTransactions={setTransactions} loading={transactionsLoading} fetchError={transactionsError} onCreateTransaction={handleAddTransaction} onUpdateTransaction={handleUpdateTransaction} onDeleteTransaction={handleDeleteTransaction} />} />
               <Route path="/analytics" element={<AnalyticsPage transactions={transactions} />} />
               <Route path="/personality" element={<PersonalityPage transactions={transactions} />} />
               <Route path="/achievements" element={<AchievementsPage transactions={transactions} />} />
               <Route path="/wrapped" element={<WrappedPage transactions={transactions} />} />
               <Route path="/roastscan" element={<RoastScanPage transactions={transactions} onSave={handleAddTransaction} />} />
+              <Route path="/budgets" element={
+                <BudgetsPage
+                  userId={session?.user?.id}
+                  transactions={transactions}
+                  onBudgetsChanged={setBudgets}
+                />
+              } />
               <Route path="/settings" element={<Settings />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
@@ -516,3 +606,6 @@ function App() {
 }
 
 export default App
+
+import { TransactionCapture, isNativeCaptureAvailable } from './plugins/transactionCapture'
+import { processCapturedNotification } from './lib/captureService'
