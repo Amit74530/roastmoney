@@ -1,17 +1,21 @@
 ﻿import { useEffect, useState } from 'react'
 import { BrowserRouter, Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
-import { Activity, ArrowRight, BarChart3, Bell, CircleDollarSign, Home, LogOut, Menu, Moon, Plus, Settings as SettingsIcon, Sparkles, SunMedium, Trophy, UserRound, X } from 'lucide-react'
+import { Activity, ArrowRight, BarChart3, Bell, CircleDollarSign, Home, LogOut, Menu, Moon, Plus, Settings as SettingsIcon, Sparkles, SunMedium, Trophy, UserRound, Wallet, X } from 'lucide-react'
 import { demoData } from './data/demoData'
 import { supabase } from './lib/supabaseClient'
 import { fetchUserTransactions, createUserTransaction, updateUserTransaction, deleteUserTransaction } from './lib/transactionService'
 import { generateExpenseRoast } from './lib/engines/insights'
-import { clearUser, getPreferences, getUser, savePreferences, saveUser } from './utils/storage'
+import { fetchUserBudgets } from './lib/budgetService'
+import { clearUser, getPreferences, getUser, savePreferences, saveUser, subscribePreferences } from './utils/storage'
 import DashboardPage from './pages/Dashboard'
 import AnalyticsPage from './pages/Analytics'
 import PersonalityPage from './pages/Personality'
 import AchievementsPage from './pages/Achievements'
 import WrappedPage from './pages/Wrapped'
+import RoastScanPage from './pages/RoastScan'
+import BudgetsPage from './pages/Budgets'
 import TransactionManager from './components/TransactionManager'
+import RoastScanShareGate from './components/RoastScanShareGate'
 import BrandLogo from './components/BrandLogo'
 import './App.css'
 import './ui-polish.css'
@@ -20,19 +24,22 @@ const sidebarItems = [
   ['/dashboard', 'Home', Home],
   ['/transactions', 'Activity', Activity],
   ['/analytics', 'Insights', BarChart3],
+  ['/budgets', 'Budgets', Wallet],
   ['/personality', 'Roast', Sparkles],
   ['/achievements', 'Achievements', Trophy],
   ['/wrapped', 'Wrapped', CircleDollarSign],
 ]
 
 const pageTitles = {
-  '/dashboard': 'ROAST.MONEY',
+  '/dashboard': 'Home',
   '/transactions': 'Activity',
   '/analytics': 'Insights',
+  '/budgets': 'Budgets',
   '/personality': 'Roast',
   '/achievements': 'Achievements',
   '/wrapped': 'Wrapped',
   '/settings': 'Settings',
+  '/roastscan': 'RoastScan',
 }
 
 const getInitials = (name, fallback = 'AM') => {
@@ -110,7 +117,7 @@ function Auth({ mode }) {
           const { error: profileError } = await supabase.from('profiles').upsert(profilePayload, { onConflict: 'id' })
           if (profileError) console.error('[Auth] Profile creation failed:', profileError)
           saveUser(buildUserFromSupabase(data.user))
-          setSuccess('Account created. Redirecting to your dashboardΓÇª')
+          setSuccess('Account created. Redirecting to your dashboard…')
           navigate('/dashboard')
         }
       } else {
@@ -118,7 +125,7 @@ function Auth({ mode }) {
         if (loginError) throw loginError
         if (data?.user) {
           saveUser(buildUserFromSupabase(data.user))
-          setSuccess('Welcome back. RedirectingΓÇª')
+          setSuccess('Welcome back. Redirecting…')
           navigate('/dashboard')
         }
       }
@@ -160,12 +167,12 @@ function Auth({ mode }) {
               <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="you@example.com" />
             </label>
             <label>Password
-              <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="ΓÇóΓÇóΓÇóΓÇóΓÇóΓÇóΓÇóΓÇó" />
+              <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="••••••••" />
             </label>
             {error && <p className="error">{error}</p>}
             {success && <p className="success">{success}</p>}
             <button className="button lime" disabled={loading}>
-              {loading ? 'WorkingΓÇª' : (mode === 'login' ? 'Enter the damage' : 'Start the diagnosis')}
+              {loading ? 'Working…' : (mode === 'login' ? 'Enter the damage' : 'Start the diagnosis')}
               <ArrowRight size={16} />
             </button>
           </form>
@@ -187,20 +194,30 @@ function Shell({ children }) {
   const [addNotice, setAddNotice] = useState(false)
   const [showAddHint, setShowAddHint] = useState(false)
   const [theme, setTheme] = useState(() => getPreferences().theme || 'system')
-  const title = pageTitles[location.pathname] || 'ROAST.MONEY'
+  const title = pageTitles[location.pathname] || 'Home'
   const adding = location.pathname === '/transactions' && new URLSearchParams(location.search).get('add') === '1'
 
   useEffect(() => {
     const resolvedTheme = theme === 'system' ? (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark') : theme
     document.documentElement.dataset.theme = resolvedTheme
-    savePreferences({ ...getPreferences(), theme })
   }, [theme])
 
+  useEffect(() => subscribePreferences(() => {
+    setTheme(getPreferences().theme || 'system')
+  }), [])
+
   useEffect(() => {
-    if (sessionStorage.getItem('roastmoney-add-hint-seen')) return undefined
-    const hintTimer = window.setTimeout(() => setShowAddHint(true), 4500)
-    return () => window.clearTimeout(hintTimer)
-  }, [])
+  if (sessionStorage.getItem('roastmoney-add-hint-seen')) return undefined
+  const showTimer = window.setTimeout(() => setShowAddHint(true), 4500)
+  const hideTimer = window.setTimeout(() => {
+    setShowAddHint(false)
+    sessionStorage.setItem('roastmoney-add-hint-seen', 'true')
+  }, 10500)
+  return () => {
+    window.clearTimeout(showTimer)
+    window.clearTimeout(hideTimer)
+  }
+}, [])
 
   useEffect(() => {
     if (!addNotice) return undefined
@@ -230,7 +247,11 @@ function Shell({ children }) {
   }
 
   const cycleTheme = () => {
-    setTheme((current) => current === 'dark' ? 'light' : current === 'light' ? 'system' : 'dark')
+    setTheme((current) => {
+      const next = current === 'dark' ? 'light' : current === 'light' ? 'system' : 'dark'
+      savePreferences({ ...getPreferences(), theme: next })
+      return next
+    })
   }
 
   const themeIcon = theme === 'dark' ? <SunMedium size={18} /> : <Moon size={18} />
@@ -267,9 +288,10 @@ function Shell({ children }) {
       <div className="main">
         <header className="topbar">
           <button className="icon-button menu-button" aria-label="Open navigation" onClick={() => setDrawer(true)}><Menu size={20} /></button>
-          <Link to="/dashboard" className="brand topbar-brand" aria-label="ROAST.MONEY home"><BrandLogo compact size="sm" /></Link>
-          <div>
-            <span className="crumb">ROAST.MONEY / {title}</span>
+          <Link to="/dashboard" className="brand topbar-brand" aria-label="Home">
+            <BrandLogo compact size="sm" />
+          </Link>
+          <div className="topbar-title">
             <h3>{title}</h3>
           </div>
           <div className="top-actions">
@@ -297,12 +319,21 @@ function Shell({ children }) {
 function Settings() {
   const user = getUser() || demoData.user
   const [intensity, setIntensity] = useState(getPreferences().intensity)
+  const [theme, setTheme] = useState(getPreferences().theme || 'system')
+  const themeLabel = theme === 'light' ? 'Light' : theme === 'dark' ? 'Dark' : 'System'
+
+  useEffect(() => subscribePreferences(() => {
+    const prefs = getPreferences()
+    setIntensity(prefs.intensity)
+    setTheme(prefs.theme || 'system')
+  }), [])
+
   return (
     <>
       <div className="page-intro compact-intro">
         <div>
           <p className="eyebrow">Control room</p>
-          <h1>Settings</h1>
+          <p className="lead">Profile, roast intensity, and appearance.</p>
         </div>
       </div>
       <section className="card settings-card">
@@ -329,10 +360,14 @@ function Settings() {
         <div className="setting">
           <div>
             <span className="eyebrow">Appearance</span>
-            <h2>Dark mode</h2>
-            <p>The only mode with enough self-awareness.</p>
+            <h2>{themeLabel} theme</h2>
+            <p>Matches the control in the top bar. System follows the device.</p>
           </div>
-          <span className="status lime-status"><i /> Default</span>
+          <div className="segmented preference">
+            {['dark', 'light', 'system'].map((item) => (
+              <button className={theme === item ? 'active' : ''} onClick={() => { setTheme(item); savePreferences({ ...getPreferences(), theme: item }) }} key={item}>{item}</button>
+            ))}
+          </div>
         </div>
       </section>
     </>
@@ -340,7 +375,14 @@ function Settings() {
 }
 
 function Protected({ children, isAuthenticated, authReady }) {
-  if (!authReady) return null
+  if (!authReady) {
+    return (
+      <main className="auth-loading" role="status">
+        <p className="eyebrow">Loading</p>
+        <h1>Loading your ledger…</h1>
+      </main>
+    )
+  }
   return isAuthenticated ? <Shell>{children}</Shell> : <Navigate to="/login" replace />
 }
 
@@ -348,8 +390,68 @@ function App() {
   const [transactions, setTransactions] = useState([])
   const [transactionsLoading, setTransactionsLoading] = useState(false)
   const [transactionsError, setTransactionsError] = useState('')
+  const [budgets, setBudgets] = useState([])
   const [session, setSession] = useState(null)
   const [authReady, setAuthReady] = useState(false)
+
+  useEffect(() => {
+    if (!session?.user) {
+      setBudgets([])
+      return undefined
+    }
+    let active = true
+    fetchUserBudgets(session.user.id)
+      .then((rows) => {
+        if (active) setBudgets(rows)
+      })
+      .catch((error) => {
+        console.error('[App] Failed to fetch budgets:', error)
+        if (active) setBudgets([])
+      })
+    return () => {
+      active = false
+    }
+  }, [session])
+
+useEffect(() => {
+  // Only run on native Android and when we have a logged-in user
+  if (!isNativeCaptureAvailable() || !session?.user) return
+
+  let listenerHandle = null
+
+  const setupListener = async () => {
+    try {
+      // Request permission (opens settings if needed)
+      const perm = await TransactionCapture.isEnabled()
+      if (!perm.enabled) {
+        // You could show a prompt here to ask the user to open settings
+        console.log('[App] Notification listener permission not granted.')
+        return
+      }
+
+      // Add the listener
+      listenerHandle = await TransactionCapture.addListener('notificationCaptured', (event) => {
+        console.log('[App] Received captured notification:', event)
+        // Process the notification and save it to Supabase
+        processCapturedNotification(event, session.user.id)
+      })
+      console.log('[App] Transaction capture listener registered.')
+
+    } catch (error) {
+      console.error('[App] Failed to set up transaction capture listener:', error)
+    }
+  }
+
+  setupListener()
+
+  // Cleanup listener when the component unmounts or session changes
+  return () => {
+    if (listenerHandle) {
+      listenerHandle.remove()
+      console.log('[App] Transaction capture listener removed.')
+    }
+  }
+}, [session])
 
   useEffect(() => {
     if (!session?.user) {
@@ -418,10 +520,16 @@ function App() {
   }, [])
 
   const handleAddTransaction = async (payload) => {
-    if (!session?.user) return
+    if (!session?.user) {
+      throw new Error('You must be signed in to save this transaction.')
+    }
     try {
       const created = await createUserTransaction(session.user.id, payload)
-      const subject = { ...created[0], time: payload.time }
+      const createdRow = created?.[0]
+      if (!createdRow) {
+        throw new Error('The transaction was saved but no row was returned. Refresh to see your ledger.')
+      }
+      const subject = { ...createdRow, time: payload.time || createdRow.time }
       const roast = subject.type === 'expense'
         ? generateExpenseRoast(subject, transactions, getPreferences().intensity)
         : null
@@ -445,10 +553,18 @@ function App() {
   }
 
   const handleUpdateTransaction = async (transactionId, payload) => {
-    if (!session?.user) return
+    if (!session?.user) {
+      throw new Error('You must be signed in to update a transaction.')
+    }
     try {
       const updated = await updateUserTransaction(session.user.id, transactionId, payload)
-      setTransactions((current) => current.map((item) => item.id === transactionId ? updated[0] : item))
+      const updatedRow = updated?.[0]
+      if (!updatedRow) {
+        throw new Error('The update returned no row. The transaction may have been removed.')
+      }
+      setTransactions((current) =>
+        current.map((item) => (item.id === transactionId ? updatedRow : item)),
+      )
       return updated
     } catch (error) {
       console.error('[App] updateUserTransaction failed:', error)
@@ -458,18 +574,27 @@ function App() {
 
   return (
     <BrowserRouter>
+      <RoastScanShareGate isAuthenticated={Boolean(session)} />
       <Routes>
         <Route path="/login" element={authReady && session ? <Navigate to="/dashboard" replace /> : <Auth mode="login" />} />
         <Route path="/signup" element={authReady && session ? <Navigate to="/dashboard" replace /> : <Auth mode="signup" />} />
         <Route path="*" element={
           <Protected isAuthenticated={Boolean(session)} authReady={authReady}>
             <Routes>
-              <Route path="/dashboard" element={<DashboardPage transactions={transactions} onAdd={handleAddTransaction} />} />
+              <Route path="/dashboard" element={<DashboardPage transactions={transactions} budgets={budgets} onAdd={handleAddTransaction} />} />
               <Route path="/transactions" element={<TransactionManager transactions={transactions} setTransactions={setTransactions} loading={transactionsLoading} fetchError={transactionsError} onCreateTransaction={handleAddTransaction} onUpdateTransaction={handleUpdateTransaction} onDeleteTransaction={handleDeleteTransaction} />} />
               <Route path="/analytics" element={<AnalyticsPage transactions={transactions} />} />
               <Route path="/personality" element={<PersonalityPage transactions={transactions} />} />
               <Route path="/achievements" element={<AchievementsPage transactions={transactions} />} />
               <Route path="/wrapped" element={<WrappedPage transactions={transactions} />} />
+              <Route path="/roastscan" element={<RoastScanPage transactions={transactions} onSave={handleAddTransaction} />} />
+              <Route path="/budgets" element={
+                <BudgetsPage
+                  userId={session?.user?.id}
+                  transactions={transactions}
+                  onBudgetsChanged={setBudgets}
+                />
+              } />
               <Route path="/settings" element={<Settings />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
@@ -481,3 +606,6 @@ function App() {
 }
 
 export default App
+
+import { TransactionCapture, isNativeCaptureAvailable } from './plugins/transactionCapture'
+import { processCapturedNotification } from './lib/captureService'

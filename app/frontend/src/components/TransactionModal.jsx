@@ -1,14 +1,20 @@
 import { useState } from 'react'
 import { Check, X } from 'lucide-react'
-
-const incomeCategories = ['Salary', 'Freelance', 'Business', 'Investment', 'Other']
-const expenseCategories = ['Food', 'Transport', 'Shopping', 'Entertainment', 'Bills', 'Health', 'Education', 'Other']
+import { categoriesForType } from '../lib/transactionCategories'
+import { localDateInputValue } from '../utils/localDate'
 
 export default function TransactionModal({ type = 'expense', onSave, onClose }) {
-  const [form, setForm] = useState({ type, title: '', amount: '', category: type === 'income' ? 'Salary' : 'Food', transaction_date: new Date().toISOString().slice(0, 10), description: '' })
+  const [form, setForm] = useState({
+    type,
+    title: '',
+    amount: '',
+    category: type === 'income' ? 'Salary' : 'Food',
+    transaction_date: localDateInputValue(),
+    description: '',
+  })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const categories = form.type === 'income' ? incomeCategories : expenseCategories
+  const categories = categoriesForType(form.type)
   const update = (key, value) => setForm((current) => ({ ...current, [key]: value }))
 
   const submit = async (event) => {

@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">ROAST.MONEY</string>
-    <string name="title_activity_main">ROAST.MONEY</string>
+    <string name="app_name">RoastMoney</string>
+    <string name="title_activity_main">RoastMoney</string>
     <string name="package_name">com.roastmoney.app</string>
     <string name="custom_url_scheme">com.roastmoney.app</string>
 </resources>

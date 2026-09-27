@@ -6,3 +6,6 @@ dist/
 *.jks
 *.keystore
 keystore.properties
+
+.vscode/
+supabase/.temp/
