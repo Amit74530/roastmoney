@@ -1,5 +1,6 @@
 ﻿import { useEffect, useState } from 'react'
 import { BrowserRouter, Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { Component } from 'react'
 import { Activity, ArrowRight, BarChart3, Bell, CircleDollarSign, Home, LogOut, Menu, Moon, Plus, Settings as SettingsIcon, Sparkles, SunMedium, Trophy, UserRound, Wallet, X } from 'lucide-react'
 import { demoData } from './data/demoData'
 import { supabase } from './lib/supabaseClient'
@@ -7,6 +8,8 @@ import { fetchUserTransactions, createUserTransaction, updateUserTransaction, de
 import { generateExpenseRoast } from './lib/engines/insights'
 import { fetchUserBudgets } from './lib/budgetService'
 import { clearUser, getPreferences, getUser, savePreferences, saveUser, subscribePreferences } from './utils/storage'
+import { TransactionCapture, isNativeCaptureAvailable } from './plugins/transactionCapture'
+import { processCapturedNotification } from './lib/captureService'
 import DashboardPage from './pages/Dashboard'
 import AnalyticsPage from './pages/Analytics'
 import PersonalityPage from './pages/Personality'
@@ -17,6 +20,8 @@ import BudgetsPage from './pages/Budgets'
 import TransactionManager from './components/TransactionManager'
 import RoastScanShareGate from './components/RoastScanShareGate'
 import BrandLogo from './components/BrandLogo'
+import Toaster from './components/Toaster'
+import useToast from './hooks/useToast'
 import './App.css'
 import './ui-polish.css'
 
@@ -386,7 +391,27 @@ function Protected({ children, isAuthenticated, authReady }) {
   return isAuthenticated ? <Shell>{children}</Shell> : <Navigate to="/login" replace />
 }
 
+class ErrorBoundary extends Component {
+  state = { hasError: false }
+
+  static getDerivedStateFromError() {
+    return { hasError: true }
+  }
+
+  componentDidCatch(error) {
+    console.error('[App] Protected route failed:', error)
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return <main className="page"><p className="error">Something went wrong. Please refresh and try again.</p></main>
+    }
+    return this.props.children
+  }
+}
+
 function App() {
+  const { toastState } = useToast()
   const [transactions, setTransactions] = useState([])
   const [transactionsLoading, setTransactionsLoading] = useState(false)
   const [transactionsError, setTransactionsError] = useState('')
@@ -575,28 +600,31 @@ useEffect(() => {
   return (
     <BrowserRouter>
       <RoastScanShareGate isAuthenticated={Boolean(session)} />
+      <Toaster toast={toastState} />
       <Routes>
         <Route path="/login" element={authReady && session ? <Navigate to="/dashboard" replace /> : <Auth mode="login" />} />
         <Route path="/signup" element={authReady && session ? <Navigate to="/dashboard" replace /> : <Auth mode="signup" />} />
         <Route path="*" element={
           <Protected isAuthenticated={Boolean(session)} authReady={authReady}>
             <Routes>
-              <Route path="/dashboard" element={<DashboardPage transactions={transactions} budgets={budgets} onAdd={handleAddTransaction} />} />
-              <Route path="/transactions" element={<TransactionManager transactions={transactions} setTransactions={setTransactions} loading={transactionsLoading} fetchError={transactionsError} onCreateTransaction={handleAddTransaction} onUpdateTransaction={handleUpdateTransaction} onDeleteTransaction={handleDeleteTransaction} />} />
-              <Route path="/analytics" element={<AnalyticsPage transactions={transactions} />} />
-              <Route path="/personality" element={<PersonalityPage transactions={transactions} />} />
-              <Route path="/achievements" element={<AchievementsPage transactions={transactions} />} />
-              <Route path="/wrapped" element={<WrappedPage transactions={transactions} />} />
-              <Route path="/roastscan" element={<RoastScanPage transactions={transactions} onSave={handleAddTransaction} />} />
+              <Route path="/dashboard" element={<ErrorBoundary><DashboardPage transactions={transactions} budgets={budgets} onAdd={handleAddTransaction} /></ErrorBoundary>} />
+              <Route path="/transactions" element={<ErrorBoundary><TransactionManager transactions={transactions} setTransactions={setTransactions} loading={transactionsLoading} fetchError={transactionsError} onCreateTransaction={handleAddTransaction} onUpdateTransaction={handleUpdateTransaction} onDeleteTransaction={handleDeleteTransaction} /></ErrorBoundary>} />
+              <Route path="/analytics" element={<ErrorBoundary><AnalyticsPage transactions={transactions} /></ErrorBoundary>} />
+              <Route path="/personality" element={<ErrorBoundary><PersonalityPage transactions={transactions} /></ErrorBoundary>} />
+              <Route path="/achievements" element={<ErrorBoundary><AchievementsPage transactions={transactions} /></ErrorBoundary>} />
+              <Route path="/wrapped" element={<ErrorBoundary><WrappedPage transactions={transactions} /></ErrorBoundary>} />
+              <Route path="/roastscan" element={<ErrorBoundary><RoastScanPage transactions={transactions} onSave={handleAddTransaction} /></ErrorBoundary>} />
               <Route path="/budgets" element={
-                <BudgetsPage
-                  userId={session?.user?.id}
-                  transactions={transactions}
-                  onBudgetsChanged={setBudgets}
-                />
+                <ErrorBoundary>
+                  <BudgetsPage
+                    userId={session?.user?.id}
+                    transactions={transactions}
+                    onBudgetsChanged={setBudgets}
+                  />
+                </ErrorBoundary>
               } />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/settings" element={<ErrorBoundary><Settings /></ErrorBoundary>} />
+              <Route path="*" element={<ErrorBoundary><Navigate to="/dashboard" replace /></ErrorBoundary>} />
             </Routes>
           </Protected>
         } />
