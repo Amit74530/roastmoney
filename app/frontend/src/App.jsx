@@ -19,6 +19,8 @@ import RoastScanPage from './pages/RoastScan'
 import BudgetsPage from './pages/Budgets'
 import TransactionManager from './components/TransactionManager'
 import RoastScanShareGate from './components/RoastScanShareGate'
+import ForgotPasswordPage from './pages/ForgotPassword'
+import ResetPasswordPage from './pages/ResetPassword'
 import BrandLogo from './components/BrandLogo'
 import Toaster from './components/Toaster'
 import useToast from './hooks/useToast'
@@ -122,8 +124,14 @@ function Auth({ mode }) {
           const { error: profileError } = await supabase.from('profiles').upsert(profilePayload, { onConflict: 'id' })
           if (profileError) console.error('[Auth] Profile creation failed:', profileError)
           saveUser(buildUserFromSupabase(data.user))
-          setSuccess('Account created. Redirecting to your dashboard…')
-          navigate('/dashboard')
+
+          // Handle email confirmation flow - if no session, show success message instead of navigating
+          if (data.session) {
+            setSuccess('Account created. Redirecting to your dashboard…')
+            navigate('/dashboard')
+          } else {
+            setSuccess('Account created! Please check your email to confirm your account. After confirmation, sign in to continue.')
+          }
         }
       } else {
         const { data, error: loginError } = await supabase.auth.signInWithPassword({ email, password })
@@ -135,7 +143,12 @@ function Auth({ mode }) {
         }
       }
     } catch (authError) {
-      setError(authError?.message || 'Authentication failed. Please try again.')
+      const message = authError?.message || ''
+      if (message.includes('over_email_send_rate_limit') || message.includes('rate limit')) {
+        setError('Too many requests. Please wait a moment before trying again.')
+      } else {
+        setError(authError?.message || 'Authentication failed. Please try again.')
+      }
       console.error('[Auth]', authError)
     } finally {
       setLoading(false)
@@ -174,6 +187,11 @@ function Auth({ mode }) {
             <label>Password
               <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="••••••••" />
             </label>
+            {mode === 'login' && (
+              <p className="auth-switch" style={{ marginTop: '-8px', marginBottom: '8px' }}>
+                <Link to="/forgot-password" style={{ fontSize: '13px' }}>Forgot password?</Link>
+              </p>
+            )}
             {error && <p className="error">{error}</p>}
             {success && <p className="success">{success}</p>}
             <button className="button lime" disabled={loading}>
@@ -531,7 +549,11 @@ useEffect(() => {
     syncSession()
 
     const { data: { subscription } } = supabase
-      ? supabase.auth.onAuthStateChange((_event, nextSession) => {
+      ? supabase.auth.onAuthStateChange((event, nextSession) => {
+          if (event === 'PASSWORD_RECOVERY') {
+            navigate('/reset-password')
+            return
+          }
           setSession(nextSession)
           if (nextSession?.user) saveUser(buildUserFromSupabase(nextSession.user))
           else clearUser()
@@ -604,6 +626,8 @@ useEffect(() => {
       <Routes>
         <Route path="/login" element={authReady && session ? <Navigate to="/dashboard" replace /> : <Auth mode="login" />} />
         <Route path="/signup" element={authReady && session ? <Navigate to="/dashboard" replace /> : <Auth mode="signup" />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="*" element={
           <Protected isAuthenticated={Boolean(session)} authReady={authReady}>
             <Routes>
