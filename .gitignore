@@ -9,3 +9,5 @@ keystore.properties
 
 .vscode/
 supabase/.temp/
+repomix-output.xml
+repomix-output.txt

@@ -6,7 +6,14 @@ import { firstOfMonth } from '../lib/budgetService'
 const money = (v) => `₹${Math.round(Math.abs(v)).toLocaleString('en-IN')}`
 
 export default function BudgetCard({ budgets, transactions }) {
-  if (!budgets?.length) return null
+  if (!budgets?.length) return (
+    <section className="card budget-card budget-get-started">
+      <span className="eyebrow">Give your money a plan</span>
+      <h2>A little structure. Less stress.</h2>
+      <p>Set a monthly limit and keep the things you love in your budget.</p>
+      <Link to="/budgets" className="text-link">Create a budget <ArrowRight size={15} /></Link>
+    </section>
+  )
 
   const monthTx = filterTransactionsByMonth(transactions, firstOfMonth())
   const top = computeBudgetProgress(budgets, monthTx)

@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "items": [
+    {
+      "title": "Review the repository, frontend, and available checks",
+      "status": "done"
+    },
+    {
+      "title": "Fix functional issues and refine the frontend design",
+      "status": "in-progress"
+    },
+    {
+      "title": "Run validation and review the finished changes",
+      "status": "pending"
+    }
+  ],
+  "updated_at": "2026-09-30T12:16:56.405Z",
+  "session_id": "01a0f23e-9453-7151-8221-e3960aca5139"
+}

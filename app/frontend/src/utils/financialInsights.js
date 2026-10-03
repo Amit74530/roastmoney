@@ -22,7 +22,7 @@ export const getAchievementData = (transactions) => getAchievementView(transacti
 export const getWrappedData = (transactions) => {
   const summary = calculateFinancialSummary(transactions)
   const expenses = expenseTransactions(transactions)
-  const category = expenses.reduce((result, transaction) => { const name = transaction.category || 'Other'; result[name] = (result[name] || 0) + transactionAmount(transaction); return result }, {})
+  const category = expenses.reduce((result, transaction) => { const name = transaction.category || 'Other'; result[name] = (result[name] || 0) + transactionAmount(transaction); return result }, Object.create(null))
   const topCategory = Object.entries(category).sort((first, second) => second[1] - first[1])[0]
   const biggest = expenses.reduce((highest, transaction) => transactionAmount(transaction) > transactionAmount(highest) ? transaction : highest, expenses[0])
   return { summary, topCategory: topCategory || ['NONE', 0], biggest }

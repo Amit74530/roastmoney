@@ -1,22 +1,29 @@
-﻿import { useEffect, useState } from 'react'
-import { BrowserRouter, Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
-import { Activity, ArrowRight, BarChart3, Bell, CircleDollarSign, Home, LogOut, Menu, Moon, Plus, Settings as SettingsIcon, Sparkles, SunMedium, Trophy, UserRound, Wallet, X } from 'lucide-react'
+﻿import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { Component } from 'react'
+import { Activity, ArrowRight, BarChart3, CircleDollarSign, Home, LogOut, Menu, Moon, Plus, Settings as SettingsIcon, Sparkles, SunMedium, Trophy, UserRound, Wallet, X } from 'lucide-react'
 import { demoData } from './data/demoData'
 import { supabase } from './lib/supabaseClient'
 import { fetchUserTransactions, createUserTransaction, updateUserTransaction, deleteUserTransaction } from './lib/transactionService'
 import { generateExpenseRoast } from './lib/engines/insights'
 import { fetchUserBudgets } from './lib/budgetService'
 import { clearUser, getPreferences, getUser, savePreferences, saveUser, subscribePreferences } from './utils/storage'
-import DashboardPage from './pages/Dashboard'
-import AnalyticsPage from './pages/Analytics'
-import PersonalityPage from './pages/Personality'
-import AchievementsPage from './pages/Achievements'
-import WrappedPage from './pages/Wrapped'
-import RoastScanPage from './pages/RoastScan'
-import BudgetsPage from './pages/Budgets'
+import { TransactionCapture, isNativeCaptureAvailable } from './plugins/transactionCapture'
+import { processCapturedNotification } from './lib/captureService'
+const DashboardPage = lazy(() => import('./pages/Dashboard'))
+const AnalyticsPage = lazy(() => import('./pages/Analytics'))
+const PersonalityPage = lazy(() => import('./pages/Personality'))
+const AchievementsPage = lazy(() => import('./pages/Achievements'))
+const WrappedPage = lazy(() => import('./pages/Wrapped'))
+const RoastScanPage = lazy(() => import('./pages/RoastScan'))
+const BudgetsPage = lazy(() => import('./pages/Budgets'))
 import TransactionManager from './components/TransactionManager'
 import RoastScanShareGate from './components/RoastScanShareGate'
+import ForgotPasswordPage from './pages/ForgotPassword'
+import ResetPasswordPage from './pages/ResetPassword'
 import BrandLogo from './components/BrandLogo'
+import Toaster from './components/Toaster'
+import useToast from './hooks/useToast'
 import './App.css'
 import './ui-polish.css'
 
@@ -65,14 +72,14 @@ function Auth({ mode }) {
   const handleSubmit = async (event) => {
     event.preventDefault()
 
-    if (!form.email || !form.password || (mode === 'signup' && !form.name)) {
+    if (!form.email.trim() || !form.password || (mode === 'signup' && !form.name.trim())) {
       setError('Complete the form. Your financial honesty starts here.')
       setSuccess('')
       return
     }
 
     const email = form.email.trim()
-    const password = form.password.trim()
+    const password = form.password
     const name = form.name.trim()
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -117,8 +124,14 @@ function Auth({ mode }) {
           const { error: profileError } = await supabase.from('profiles').upsert(profilePayload, { onConflict: 'id' })
           if (profileError) console.error('[Auth] Profile creation failed:', profileError)
           saveUser(buildUserFromSupabase(data.user))
-          setSuccess('Account created. Redirecting to your dashboard…')
-          navigate('/dashboard')
+
+          // Handle email confirmation flow - if no session, show success message instead of navigating
+          if (data.session) {
+            setSuccess('Account created. Redirecting to your dashboard…')
+            navigate('/dashboard')
+          } else {
+            setSuccess('Account created! Please check your email to confirm your account. After confirmation, sign in to continue.')
+          }
         }
       } else {
         const { data, error: loginError } = await supabase.auth.signInWithPassword({ email, password })
@@ -130,7 +143,12 @@ function Auth({ mode }) {
         }
       }
     } catch (authError) {
-      setError(authError?.message || 'Authentication failed. Please try again.')
+      const message = authError?.message || ''
+      if (message.includes('over_email_send_rate_limit') || message.includes('rate limit')) {
+        setError('Too many requests. Please wait a moment before trying again.')
+      } else {
+        setError(authError?.message || 'Authentication failed. Please try again.')
+      }
       console.error('[Auth]', authError)
     } finally {
       setLoading(false)
@@ -160,17 +178,22 @@ function Auth({ mode }) {
           <form onSubmit={handleSubmit}>
             {mode === 'signup' && (
               <label>Name
-                <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Amit Karki" />
+                <input required autoComplete="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Amit Karki" />
               </label>
             )}
             <label>Email
-              <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="you@example.com" />
+              <input required autoComplete="email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="you@example.com" />
             </label>
             <label>Password
-              <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="••••••••" />
+              <input required minLength={6} autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="••••••••" />
             </label>
-            {error && <p className="error">{error}</p>}
-            {success && <p className="success">{success}</p>}
+            {mode === 'login' && (
+              <p className="auth-switch" style={{ marginTop: '-8px', marginBottom: '8px' }}>
+                <Link to="/forgot-password" style={{ fontSize: '13px' }}>Forgot password?</Link>
+              </p>
+            )}
+            {error && <p className="error" role="alert">{error}</p>}
+            {success && <p className="success" role="status">{success}</p>}
             <button className="button lime" disabled={loading}>
               {loading ? 'Working…' : (mode === 'login' ? 'Enter the damage' : 'Start the diagnosis')}
               <ArrowRight size={16} />
@@ -191,15 +214,63 @@ function Shell({ children }) {
   const location = useLocation()
   const user = getUser() || demoData.user
   const [drawer, setDrawer] = useState(false)
+  const drawerRef = useRef(null)
+  const { toast } = useToast()
+
+  useEffect(() => {
+    if (!drawer) return undefined
+    const previousFocus = document.activeElement
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    drawerRef.current?.querySelector('a, button')?.focus()
+    const handleKey = (event) => {
+      if (event.key === 'Escape') setDrawer(false)
+      if (event.key !== 'Tab') return
+      const items = [...drawerRef.current.querySelectorAll('a, button')].filter((item) => item.getClientRects().length)
+      const first = items[0]
+      const last = items.at(-1)
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus() }
+      if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus() }
+    }
+    const handleResize = () => { if (window.innerWidth > 800) setDrawer(false) }
+    window.addEventListener('keydown', handleKey)
+    window.addEventListener('resize', handleResize)
+    return () => {
+      window.removeEventListener('keydown', handleKey)
+      window.removeEventListener('resize', handleResize)
+      document.body.style.overflow = previousOverflow
+      previousFocus?.focus()
+    }
+  }, [drawer])
   const [addNotice, setAddNotice] = useState(false)
   const [showAddHint, setShowAddHint] = useState(false)
   const [theme, setTheme] = useState(() => getPreferences().theme || 'system')
+  const [resolvedTheme, setResolvedTheme] = useState(() => {
+    const pref = getPreferences().theme || 'system'
+    if (pref === 'system') {
+      return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+    }
+    return pref
+  })
   const title = pageTitles[location.pathname] || 'Home'
   const adding = location.pathname === '/transactions' && new URLSearchParams(location.search).get('add') === '1'
 
   useEffect(() => {
-    const resolvedTheme = theme === 'system' ? (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark') : theme
-    document.documentElement.dataset.theme = resolvedTheme
+    const resolved = theme === 'system' ? (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark') : theme
+    setResolvedTheme(resolved)
+    document.documentElement.dataset.theme = resolved
+  }, [theme])
+
+  useEffect(() => {
+    if (theme !== 'system') return undefined
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: light)')
+    const handler = (e) => {
+      const newResolved = e.matches ? 'light' : 'dark'
+      setResolvedTheme(newResolved)
+      document.documentElement.dataset.theme = newResolved
+    }
+    mediaQuery.addEventListener('change', handler)
+    return () => mediaQuery.removeEventListener('change', handler)
   }, [theme])
 
   useEffect(() => subscribePreferences(() => {
@@ -236,13 +307,13 @@ function Shell({ children }) {
     try {
       if (supabase) {
         const { error } = await supabase.auth.signOut()
-        if (error) console.error('[Auth] Sign out failed:', error)
+        if (error) throw error
       }
-    } catch (error) {
-      console.error('[Auth] Sign out failed:', error)
-    } finally {
       clearUser()
       navigate('/login')
+    } catch (error) {
+      console.error('[Auth] Sign out failed:', error)
+      toast.error('Could not sign out. Please try again.')
     }
   }
 
@@ -254,12 +325,13 @@ function Shell({ children }) {
     })
   }
 
-  const themeIcon = theme === 'dark' ? <SunMedium size={18} /> : <Moon size={18} />
+  const themeIcon = resolvedTheme === 'dark' ? <SunMedium size={18} /> : <Moon size={18} />
 
   return (
     <div className="shell">
-      <div className={`sidebar-backdrop ${drawer ? 'open' : ''}`} onClick={() => setDrawer(false)} />
-      <aside className={drawer ? 'sidebar open' : 'sidebar'}>
+      <a className="skip-link" href="#main-content">Skip to content</a>
+      <div className={`sidebar-backdrop ${drawer ? 'open' : ''}`} aria-hidden="true" onClick={() => setDrawer(false)} />
+      <aside ref={drawerRef} id="sidebar-navigation" className={drawer ? 'sidebar open' : 'sidebar'}>
         <div className="side-top">
           <Link to="/dashboard" className="brand" onClick={() => setDrawer(false)}>
             <BrandLogo />
@@ -285,9 +357,9 @@ function Shell({ children }) {
           </div>
         </div>
       </aside>
-      <div className="main">
+      <div className="main" inert={drawer}>
         <header className="topbar">
-          <button className="icon-button menu-button" aria-label="Open navigation" onClick={() => setDrawer(true)}><Menu size={20} /></button>
+          <button className="icon-button menu-button" aria-label="Open navigation" aria-expanded={drawer} aria-controls="sidebar-navigation" onClick={() => setDrawer(true)}><Menu size={20} /></button>
           <Link to="/dashboard" className="brand topbar-brand" aria-label="Home">
             <BrandLogo compact size="sm" />
           </Link>
@@ -297,13 +369,12 @@ function Shell({ children }) {
           <div className="top-actions">
             <span className="date">{new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
             <button className="icon-button theme-toggle" aria-label="Toggle theme" onClick={cycleTheme}>{themeIcon}</button>
-            <button className="icon-button" aria-label="Notifications"><Bell size={18} /></button>
             <div className="avatar" aria-label={`Signed in as ${user.name}`}>{user.initials}</div>
           </div>
         </header>
-        <div className="page">{children}</div>
+        <main className="page" id="main-content" tabIndex={-1}><Suspense fallback={<section className="card ledger-status" role="status">Loading your page…</section>}>{children}</Suspense></main>
       </div>
-      <nav className="mobile-bottom-nav" aria-label="Mobile navigation">
+      <nav className="mobile-bottom-nav" aria-label="Mobile navigation" inert={drawer}>
         <NavLink className="bottom-nav-link" to="/dashboard"><Home size={16} />Home</NavLink>
         <NavLink className={({ isActive }) => `bottom-nav-link${isActive && !adding ? ' active' : ''}`} to="/transactions"><Activity size={16} />Activity</NavLink>
         <Link className="add-nav-action" to="/transactions?add=1" onClick={handleAddTap} aria-label="Add transaction"><Plus size={20} /></Link>
@@ -333,6 +404,7 @@ function Settings() {
       <div className="page-intro compact-intro">
         <div>
           <p className="eyebrow">Control room</p>
+          <h1>Make yourself at home.</h1>
           <p className="lead">Profile, roast intensity, and appearance.</p>
         </div>
       </div>
@@ -386,7 +458,28 @@ function Protected({ children, isAuthenticated, authReady }) {
   return isAuthenticated ? <Shell>{children}</Shell> : <Navigate to="/login" replace />
 }
 
+class ErrorBoundary extends Component {
+  state = { hasError: false }
+
+  static getDerivedStateFromError() {
+    return { hasError: true }
+  }
+
+  componentDidCatch(error) {
+    console.error('[App] Protected route failed:', error)
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return <main className="page"><p className="error">Something went wrong. Please refresh and try again.</p></main>
+    }
+    return this.props.children
+  }
+}
+
 function App() {
+  const navigate = useNavigate()
+  const { toastState } = useToast()
   const [transactions, setTransactions] = useState([])
   const [transactionsLoading, setTransactionsLoading] = useState(false)
   const [transactionsError, setTransactionsError] = useState('')
@@ -492,24 +585,31 @@ useEffect(() => {
         return
       }
 
-      const { data: { session: currentSession }, error } = await supabase.auth.getSession()
-      if (!isMounted) return
-
-      if (error) console.error('[Auth] Session check failed:', error)
-
-      setSession(currentSession)
-      if (currentSession?.user) saveUser(buildUserFromSupabase(currentSession.user))
-      else clearUser()
-      setAuthReady(true)
+      try {
+        const { data: { session: currentSession }, error } = await supabase.auth.getSession()
+        if (!isMounted) return
+        if (error) throw error
+        setSession(currentSession)
+        if (currentSession?.user) saveUser(buildUserFromSupabase(currentSession.user))
+        else clearUser()
+      } catch (error) {
+        console.error('[Auth] Session check failed:', error)
+        if (isMounted) { setSession(null); clearUser() }
+      } finally {
+        if (isMounted) setAuthReady(true)
+      }
     }
 
     syncSession()
 
     const { data: { subscription } } = supabase
-      ? supabase.auth.onAuthStateChange((_event, nextSession) => {
+      ? supabase.auth.onAuthStateChange((event, nextSession) => {
+          if (!isMounted) return
           setSession(nextSession)
+          setAuthReady(true)
           if (nextSession?.user) saveUser(buildUserFromSupabase(nextSession.user))
           else clearUser()
+          if (event === 'PASSWORD_RECOVERY') navigate('/reset-password', { replace: true })
         })
       : { data: { subscription: null } }
 
@@ -517,7 +617,7 @@ useEffect(() => {
       isMounted = false
       if (subscription) subscription.unsubscribe()
     }
-  }, [])
+  }, [navigate])
 
   const handleAddTransaction = async (payload) => {
     if (!session?.user) {
@@ -573,39 +673,41 @@ useEffect(() => {
   }
 
   return (
-    <BrowserRouter>
+    <>
       <RoastScanShareGate isAuthenticated={Boolean(session)} />
+      <Toaster toast={toastState} />
       <Routes>
         <Route path="/login" element={authReady && session ? <Navigate to="/dashboard" replace /> : <Auth mode="login" />} />
         <Route path="/signup" element={authReady && session ? <Navigate to="/dashboard" replace /> : <Auth mode="signup" />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage authReady={authReady} isAuthenticated={Boolean(session)} />} />
         <Route path="*" element={
           <Protected isAuthenticated={Boolean(session)} authReady={authReady}>
             <Routes>
-              <Route path="/dashboard" element={<DashboardPage transactions={transactions} budgets={budgets} onAdd={handleAddTransaction} />} />
-              <Route path="/transactions" element={<TransactionManager transactions={transactions} setTransactions={setTransactions} loading={transactionsLoading} fetchError={transactionsError} onCreateTransaction={handleAddTransaction} onUpdateTransaction={handleUpdateTransaction} onDeleteTransaction={handleDeleteTransaction} />} />
-              <Route path="/analytics" element={<AnalyticsPage transactions={transactions} />} />
-              <Route path="/personality" element={<PersonalityPage transactions={transactions} />} />
-              <Route path="/achievements" element={<AchievementsPage transactions={transactions} />} />
-              <Route path="/wrapped" element={<WrappedPage transactions={transactions} />} />
-              <Route path="/roastscan" element={<RoastScanPage transactions={transactions} onSave={handleAddTransaction} />} />
+              <Route path="/dashboard" element={<ErrorBoundary><DashboardPage transactions={transactions} budgets={budgets} onAdd={handleAddTransaction} loading={transactionsLoading} error={transactionsError} /></ErrorBoundary>} />
+              <Route path="/transactions" element={<ErrorBoundary><TransactionManager transactions={transactions} setTransactions={setTransactions} loading={transactionsLoading} fetchError={transactionsError} onCreateTransaction={handleAddTransaction} onUpdateTransaction={handleUpdateTransaction} onDeleteTransaction={handleDeleteTransaction} /></ErrorBoundary>} />
+              <Route path="/analytics" element={<ErrorBoundary><AnalyticsPage transactions={transactions} /></ErrorBoundary>} />
+              <Route path="/personality" element={<ErrorBoundary><PersonalityPage transactions={transactions} /></ErrorBoundary>} />
+              <Route path="/achievements" element={<ErrorBoundary><AchievementsPage transactions={transactions} /></ErrorBoundary>} />
+              <Route path="/wrapped" element={<ErrorBoundary><WrappedPage transactions={transactions} /></ErrorBoundary>} />
+              <Route path="/roastscan" element={<ErrorBoundary><RoastScanPage transactions={transactions} onSave={handleAddTransaction} /></ErrorBoundary>} />
               <Route path="/budgets" element={
-                <BudgetsPage
-                  userId={session?.user?.id}
-                  transactions={transactions}
-                  onBudgetsChanged={setBudgets}
-                />
+                <ErrorBoundary>
+                  <BudgetsPage
+                    userId={session?.user?.id}
+                    transactions={transactions}
+                    onBudgetsChanged={setBudgets}
+                  />
+                </ErrorBoundary>
               } />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/settings" element={<ErrorBoundary><Settings /></ErrorBoundary>} />
+              <Route path="*" element={<ErrorBoundary><Navigate to="/dashboard" replace /></ErrorBoundary>} />
             </Routes>
           </Protected>
         } />
       </Routes>
-    </BrowserRouter>
+    </>
   )
 }
 
 export default App
-
-import { TransactionCapture, isNativeCaptureAvailable } from './plugins/transactionCapture'
-import { processCapturedNotification } from './lib/captureService'

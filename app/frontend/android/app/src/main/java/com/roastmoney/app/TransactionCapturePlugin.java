@@ -39,10 +39,18 @@ public class TransactionCapturePlugin extends Plugin {
     @PluginMethod
     public void isEnabled(PluginCall call) {
         JSObject result = new JSObject();
-        // This is a simplified check. A more robust check uses NotificationManager.
-        // For now, we assume if the app is running and the plugin is loaded,
-        // it may or may not be enabled. The main check will happen in JS.
-        result.put("enabled", true);
+        try {
+            String enabledListeners = Settings.Secure.getString(
+                getContext().getContentResolver(),
+                "enabled_notification_listeners"
+            );
+            boolean enabled = enabledListeners != null
+                && enabledListeners.contains(getContext().getPackageName());
+            result.put("enabled", enabled);
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to check notification access", e);
+            result.put("enabled", false);
+        }
         call.resolve(result);
     }
 
@@ -56,6 +64,7 @@ public class TransactionCapturePlugin extends Plugin {
             getActivity().startActivity(intent);
             call.resolve();
         } catch (Exception e) {
+            Log.e(TAG, "Failed to open notification settings", e);
             call.reject("Could not open notification settings", e);
         }
     }

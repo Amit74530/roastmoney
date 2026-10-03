@@ -1,0 +1,13 @@
+{
+  "name": "roastmoney",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Roast.Money - Humorous personal finance tracking with UPI screenshot parsing",
+  "scripts": {
+    "dev": "npm run dev --prefix app/frontend",
+    "build": "npm run build --prefix app/frontend",
+    "preview": "npm run preview --prefix app/frontend",
+    "test": "npm run test --prefix app/frontend",
+    "lint": "npm run lint --prefix app/frontend"
+  }
+}

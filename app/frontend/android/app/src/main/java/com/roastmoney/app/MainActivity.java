@@ -18,3 +18,14 @@ public class MainActivity extends BridgeActivity {
         setIntent(intent);
     }
 }
+
+
+public class MainActivity extends BridgeActivity {
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        registerPlugin(ShareReceiverPlugin.class);
+        registerPlugin(TransactionCapturePlugin.class); // Add this line
+        super.onCreate(savedInstanceState);
+    }
+    // ...
+}

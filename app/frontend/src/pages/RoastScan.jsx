@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { ArrowLeft, Check, Pencil, RefreshCw, ScanSearch } from 'lucide-react'
+import { ArrowLeft, Check, Pencil, RefreshCw, ScanSearch, Upload } from 'lucide-react'
 import { ShareReceiver, isNativeShareReceiverAvailable, toDisplayableShare } from '../plugins/shareReceiver'
 import { extractRoastScanImage, imageSourceToUpload } from '../lib/roastscanService'
 import { confidenceCopy, emptyForm, mapExtractionToForm } from '../lib/roastscanMapping'
 import { findLikelyDuplicates } from '../lib/duplicateTransactions'
 import { categoriesForType, paymentMethods } from '../lib/transactionCategories'
+import useToast from '../hooks/useToast'
 
 const money = (value) => {
   const amount = Number(value)
@@ -30,13 +31,13 @@ const prettyTime = (value) => {
 
 export default function RoastScan({ transactions = [], onSave }) {
   const location = useLocation()
+  const { toast } = useToast()
   const [shareState, setShareState] = useState({ status: 'loading', share: null })
   const [extractStatus, setExtractStatus] = useState('idle')
   const [extractError, setExtractError] = useState('')
   const [extraction, setExtraction] = useState(null)
   const [form, setForm] = useState(emptyForm)
   const [editing, setEditing] = useState(false)
-  const [saveError, setSaveError] = useState('')
   const [saving, setSaving] = useState(false)
   const [duplicates, setDuplicates] = useState([])
   const [confirmDuplicate, setConfirmDuplicate] = useState(false)
@@ -48,6 +49,30 @@ export default function RoastScan({ transactions = [], onSave }) {
   const categories = categoriesForType(form.type || 'expense')
   const confidence = confidenceCopy(extraction)
 
+  const handleFileUpload = (event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    const objectUrl = URL.createObjectURL(file)
+    setShareState({
+      status: 'ready',
+      share: {
+        id: String(Date.now()),
+        received: true,
+        webPath: objectUrl,
+        mimeType: file.type || 'image/jpeg',
+      },
+    })
+    setExtractStatus('idle')
+    setExtractError('')
+    setExtraction(null)
+    setForm(emptyForm())
+    setEditing(false)
+    setDuplicates([])
+    setConfirmDuplicate(false)
+    setRoast(null)
+    setSaved(false)
+  }
+
   useEffect(() => {
     let active = true
     setShareState({ status: 'loading', share: null })
@@ -56,7 +81,6 @@ export default function RoastScan({ transactions = [], onSave }) {
     setExtraction(null)
     setForm(emptyForm())
     setEditing(false)
-    setSaveError('')
     setDuplicates([])
     setConfirmDuplicate(false)
     setRoast(null)
@@ -66,8 +90,8 @@ export default function RoastScan({ transactions = [], onSave }) {
       if (!isNativeShareReceiverAvailable()) {
         if (active) {
           setShareState({
-            status: 'unavailable',
-            share: { received: false, message: 'Share a payment screenshot to RoastMoney on Android to start RoastScan.' },
+            status: 'empty',
+            share: { received: false, message: 'Upload or share a payment screenshot to start RoastScan.' },
           })
         }
         return
@@ -106,19 +130,22 @@ export default function RoastScan({ transactions = [], onSave }) {
     setSaved(false)
     setRoast(null)
     setConfirmDuplicate(false)
-    setSaveError('')
     setEditing(false)
     try {
       let prepared
-      try {
-        const upload = toDisplayableShare(await ShareReceiver.readPendingShareForUpload())
-        prepared = await imageSourceToUpload({
-          imageBase64: upload?.imageBase64,
-          webPath: upload?.webPath,
-          mimeType: upload?.mimeType,
-        })
-      } catch (nativeError) {
-        console.warn('[RoastScan] Native JPEG copy unavailable, using preview fetch.', nativeError)
+      if (isNativeShareReceiverAvailable()) {
+        try {
+          const upload = toDisplayableShare(await ShareReceiver.readPendingShareForUpload())
+          prepared = await imageSourceToUpload({
+            imageBase64: upload?.imageBase64,
+            webPath: upload?.webPath,
+            mimeType: upload?.mimeType,
+          })
+        } catch (nativeError) {
+          console.warn('[RoastScan] Native JPEG copy unavailable, using preview fetch.', nativeError)
+          prepared = await imageSourceToUpload({ webPath: share.webPath, mimeType: share.mimeType })
+        }
+      } else {
         prepared = await imageSourceToUpload({ webPath: share.webPath, mimeType: share.mimeType })
       }
       console.info('[RoastScan] prepared upload', {
@@ -156,7 +183,7 @@ export default function RoastScan({ transactions = [], onSave }) {
     })
   }
 
-  const payloadFromForm = () => ({
+  const payload = useMemo(() => ({
     title: (form.title || form.merchant).trim(),
     merchant: (form.merchant || form.title).trim(),
     amount: Number(form.amount),
@@ -169,34 +196,33 @@ export default function RoastScan({ transactions = [], onSave }) {
     description: (form.description || '').trim(),
     source: 'roastscan',
     scan_confidence: Number.isFinite(Number(extraction?.confidence)) ? Number(extraction.confidence) : null,
-  })
+  }), [form, extraction])
 
   const likelyDuplicates = useMemo(
-    () => findLikelyDuplicates(transactions, payloadFromForm()),
-    [transactions, form],
+    () => findLikelyDuplicates(transactions, payload),
+    [transactions, payload],
   )
 
   const saveTransaction = async () => {
-    const payload = payloadFromForm()
     if (!payload.title || !payload.transaction_date || !Number.isFinite(payload.amount) || payload.amount <= 0) {
-      setSaveError('Enter a merchant, date, and amount greater than zero before saving.')
+      toast.error('Enter a merchant, date, and amount greater than zero before saving.')
       setEditing(true)
       return
     }
     if (!onSave) {
-      setSaveError('You must be signed in to save this transaction.')
+      toast.error('You must be signed in to save this transaction.')
       return
     }
     try {
       setSaving(true)
-      setSaveError('')
       const result = await onSave(payload)
       setRoast(result?.roast || null)
       setSaved(true)
       setConfirmDuplicate(false)
+      toast.success(result?.roast?.text || 'Transaction saved. The evidence has been logged.', result?.roast ? 5200 : 2600)
       if (isNativeShareReceiverAvailable()) await ShareReceiver.clearPendingShare()
     } catch (error) {
-      setSaveError(error?.message || 'The transaction was not saved.')
+      toast.error(error?.message || 'The transaction was not saved.')
     } finally {
       setSaving(false)
     }
@@ -221,8 +247,14 @@ export default function RoastScan({ transactions = [], onSave }) {
         <section className="card roastscan-empty">
           <ScanSearch size={22} />
           <h1>Waiting for a screenshot.</h1>
-          <p>{share?.message || 'Share a payment screenshot and choose RoastMoney.'}</p>
-          <Link className="button outline" to="/dashboard"><ArrowLeft size={16} /> Back</Link>
+          <p>{share?.message || 'Upload or share a payment screenshot and let RoastMoney extract the details.'}</p>
+          <div style={{ display: 'flex', gap: '10px', marginTop: '14px', flexWrap: 'wrap', justifyContent: 'center' }}>
+            <label className="button lime" style={{ cursor: 'pointer' }}>
+              <Upload size={16} /> Choose screenshot
+              <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileUpload} />
+            </label>
+            <Link className="button outline" to="/dashboard"><ArrowLeft size={16} /> Back</Link>
+          </div>
         </section>
       )}
 
@@ -311,7 +343,6 @@ export default function RoastScan({ transactions = [], onSave }) {
                   <p>{duplicates[0].title} · {money(duplicates[0].amount)} on {duplicates[0].transaction_date}.</p>
                 </div>
               )}
-              {saveError && <p className="error">{saveError}</p>}
 
               <div className="roastscan-actions">
                 <button className="button lime" disabled={saving || scanning}>
