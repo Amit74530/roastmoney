@@ -44,9 +44,10 @@ export const buildIncomeExpenseTrend = (transactions) => {
 }
 
 export const buildCategoryBreakdown = (transactions) => Object.entries(transactions.filter((transaction) => !transactionIsIncome(transaction)).reduce((result, transaction) => {
-  result[transaction.category] = (result[transaction.category] || 0) + transactionAmount(transaction)
+  const category = transaction.category || 'Other'
+  result[category] = (result[category] || 0) + transactionAmount(transaction)
   return result
-}, {})).map(([name, value]) => ({ name, value })).sort((first, second) => second.value - first.value)
+}, Object.create(null))).map(([name, value]) => ({ name, value })).sort((first, second) => second.value - first.value)
 
 export const calculateStatistics = (transactions) => {
   const expenses = transactions.filter((transaction) => !transactionIsIncome(transaction))

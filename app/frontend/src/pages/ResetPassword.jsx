@@ -1,29 +1,16 @@
-import { useState, useEffect } from 'react'
-import { Link, useSearchParams, useNavigate } from 'react-router-dom'
-import { ArrowRight, Lock, Mail } from 'lucide-react'
+import { useState } from 'react'
+import { Link } from 'react-router-dom'
+import { ArrowRight, Lock } from 'lucide-react'
 import { supabase } from '../lib/supabaseClient'
 import BrandLogo from '../components/BrandLogo'
 
-export default function ResetPassword() {
-  const [searchParams] = useSearchParams()
-  const navigate = useNavigate()
+export default function ResetPassword({ authReady, isAuthenticated }) {
   const [form, setForm] = useState({ password: '', confirmPassword: '' })
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
-  const [validToken, setValidToken] = useState(null)
-
-  useEffect(() => {
-    const token = searchParams.get('token')
-    const type = searchParams.get('type')
-
-    if (type === 'recovery' && token) {
-      setValidToken(true)
-    } else if (!token) {
-      setValidToken(false)
-      setError('Invalid or expired reset link. Please request a new one.')
-    }
-  }, [searchParams])
+  // Supabase exchanges recovery links for a session before App marks auth ready.
+  // Query-string presence alone is not evidence of a valid recovery session.
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -59,8 +46,7 @@ export default function ResetPassword() {
 
       if (updateError) throw updateError
 
-      setSuccess('Password updated. Redirecting to sign in…')
-      setTimeout(() => navigate('/login'), 2000)
+      setSuccess('Password updated. Your account is ready.')
     } catch (authError) {
       const message = authError?.message || ''
       if (message.includes('over_email_send_rate_limit') || message.includes('rate limit')) {
@@ -76,7 +62,9 @@ export default function ResetPassword() {
     }
   }
 
-  if (!validToken) {
+  if (!authReady) return <main className="auth-loading" role="status">Verifying your reset link…</main>
+
+  if (!isAuthenticated) {
     return (
       <main className="auth">
         <section className="auth-brand">
@@ -126,7 +114,7 @@ export default function ResetPassword() {
           <p className="eyebrow">New credentials</p>
           <h2>Enter your new password.</h2>
           <p className="lead">Your money is waiting for its new keeper.</p>
-          <form onSubmit={handleSubmit}>
+          {success ? <div role="status"><p className="success">{success}</p><p className="auth-switch"><Link to="/dashboard" className="button lime">Continue to dashboard <ArrowRight size={16} /></Link></p></div> : <form onSubmit={handleSubmit}>
             <label>
               <Lock size={16} style={{ display: 'none' }} />
               New password
@@ -149,13 +137,12 @@ export default function ResetPassword() {
                 autoComplete="new-password"
               />
             </label>
-            {error && <p className="error">{error}</p>}
-            {success && <p className="success">{success}</p>}
+            {error && <p className="error" role="alert">{error}</p>}
             <button className="button lime" disabled={loading}>
               {loading ? 'Updating…' : 'Update password'}
               <ArrowRight size={16} />
             </button>
-          </form>
+          </form>}
           <p className="auth-switch">
             <Link to="/login">Back to sign in.</Link>
           </p>

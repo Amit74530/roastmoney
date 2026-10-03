@@ -71,7 +71,7 @@ export function computeMetrics(transactions) {
   const total = transactions.reduce((sum, t) => sum + t.amount, 0)
   const avg = total / transactions.length
 
-  const byCategory = {}
+  const byCategory = Object.create(null)
   transactions.forEach((t) => {
     byCategory[t.category] = (byCategory[t.category] || 0) + t.amount
   })
@@ -81,8 +81,10 @@ export function computeMetrics(transactions) {
   const subscriptionRatio = safeDiv(byCategory.Subscriptions || 0, total)
 
   const lateNightCount = transactions.filter((t) => {
-    if (t.hourKnown === false) return false
-    const h = new Date(t.timestamp).getHours()
+    if (t.hourKnown === false || !t.timestamp) return false
+    const d = new Date(t.timestamp)
+    if (Number.isNaN(d.getTime())) return false
+    const h = d.getHours()
     return h >= 0 && h < 5
   }).length
   const lateNightRatio = safeDiv(lateNightCount, transactions.length)
@@ -94,7 +96,11 @@ export function computeMetrics(transactions) {
   const largeRatio = safeDiv(largeCount, transactions.length)
 
   const weekendTotal = transactions
-    .filter((t) => [0, 6].includes(new Date(t.timestamp).getDay()))
+    .filter((t) => {
+      if (!t.timestamp) return false
+      const d = new Date(t.timestamp)
+      return !Number.isNaN(d.getTime()) && [0, 6].includes(d.getDay())
+    })
     .reduce((s, t) => s + t.amount, 0)
   const weekendRatio = safeDiv(weekendTotal, total)
 
@@ -103,15 +109,18 @@ export function computeMetrics(transactions) {
   ).length
   const impulseRatio = safeDiv(impulseCount, transactions.length)
 
-  const sorted = [...transactions].sort(
-    (a, b) => new Date(a.timestamp) - new Date(b.timestamp),
-  )
+  const timed = transactions
+    .filter((t) => t.hourKnown !== false && t.timestamp && !Number.isNaN(new Date(t.timestamp).getTime()))
+    .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+
   let burstEvents = 0
-  for (let i = 0; i < sorted.length - 1; i += 1) {
-    const gapMinutes = Math.abs(
-      new Date(sorted[i + 1].timestamp) - new Date(sorted[i].timestamp),
-    ) / 60000
-    if (gapMinutes <= 45) burstEvents += 1
+  if (timed.length >= 2) {
+    for (let i = 0; i < timed.length - 1; i += 1) {
+      const gapMinutes = Math.abs(
+        new Date(timed[i + 1].timestamp) - new Date(timed[i].timestamp),
+      ) / 60000
+      if (gapMinutes <= 45) burstEvents += 1
+    }
   }
   const burstRatio = Math.min(1, safeDiv(burstEvents, transactions.length))
 
@@ -237,15 +246,28 @@ export const ACHIEVEMENT_DEFS = [
     icon: '⚡',
     hidden: true,
     evaluate: (txs) => {
-      const sorted = [...txs].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
-      let maxBurst = 1
-      let current = 1
-      for (let i = 1; i < sorted.length; i += 1) {
-        const gap = (new Date(sorted[i].timestamp) - new Date(sorted[i - 1].timestamp)) / 60000
-        current = gap <= 30 ? current + 1 : 1
-        maxBurst = Math.max(maxBurst, current)
+      const timed = txs
+        .filter((t) => t.hourKnown !== false && t.timestamp && !Number.isNaN(new Date(t.timestamp).getTime()))
+        .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+
+      if (timed.length === 0) {
+        return { unlocked: false, progress: 0 }
       }
-      return { unlocked: maxBurst >= 5, progress: Math.min(1, maxBurst / 5) }
+
+      let maxWindow = 1
+      for (let i = 0; i < timed.length; i += 1) {
+        let count = 1
+        for (let j = i + 1; j < timed.length; j += 1) {
+          const span = (new Date(timed[j].timestamp) - new Date(timed[i].timestamp)) / 60000
+          if (span <= 30) {
+            count += 1
+          } else {
+            break
+          }
+        }
+        maxWindow = Math.max(maxWindow, count)
+      }
+      return { unlocked: maxWindow >= 5, progress: Math.min(1, maxWindow / 5) }
     },
   },
   {

@@ -379,14 +379,6 @@
   padding: 36px 28px 72px;
   margin: auto;
   position: relative;
-
-  .page {
-  padding-bottom: calc(96px + env(safe-area-inset-bottom)) !important;
-}
-.topbar { min-height: 56px; padding: 0 14px; }
-.topbar-title h3 { font-size: 15px; letter-spacing: -0.3px; }
-.date, .theme-toggle, .top-actions .icon-button[aria-label="Notifications"] { display: none; }
-  
 }
 .page-intro {
   display: flex;
@@ -1681,7 +1673,7 @@
   border-radius: 14px;
   color: var(--text);
   font-size: 14px;
-  color-scheme: dark;
+  color-scheme: inherit;
 }
 .month-input:not(:focus):invalid,
 .month-input:not(:focus)[value=""] {

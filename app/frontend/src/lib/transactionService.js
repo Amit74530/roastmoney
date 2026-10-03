@@ -1,22 +1,64 @@
 import { supabase } from './supabaseClient'
-import { localDateInputValue } from '../utils/localDate'
+import { localDateInputValue, parseCalendarDate } from '../utils/localDate'
 
 const emptyToNull = (value) => {
   const text = String(value ?? '').trim()
   return text ? text : null
 }
 
+const validateAmount = (value) => {
+  const amount = Number(value)
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw new Error('Transaction amount must be greater than zero.')
+  }
+  return amount
+}
+
+const validateDate = (value) => {
+  if (value === undefined || value === null || value === '') {
+    return localDateInputValue()
+  }
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) {
+      throw new Error('A valid transaction date is required.')
+    }
+    return localDateInputValue(value)
+  }
+  if (typeof value === 'string') {
+    const parsed = parseCalendarDate(value)
+    if (!parsed) {
+      throw new Error('A valid transaction date is required.')
+    }
+    return localDateInputValue(parsed)
+  }
+  throw new Error('A valid transaction date is required.')
+}
+
+const validateTime = (value) => {
+  if (value === undefined || value === null || value === '') {
+    return null
+  }
+  const raw = String(value).trim()
+  if (!raw) return null
+  const match = /^([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/.exec(raw)
+  if (!match) {
+    throw new Error('A valid transaction time is required.')
+  }
+  return `${match[1]}:${match[2]}`
+}
+
 const toDateString = (value) => {
   if (!value) return localDateInputValue()
-  return String(value).slice(0, 10)
+  if (value instanceof Date) return localDateInputValue(value)
+  const parsed = parseCalendarDate(value)
+  return parsed ? localDateInputValue(parsed) : String(value).slice(0, 10)
 }
 
 const toTimeString = (value) => {
   const raw = String(value || '').trim()
   if (!raw) return null
-  if (/^\d{2}:\d{2}$/.test(raw)) return raw
-  if (/^\d{2}:\d{2}:\d{2}/.test(raw)) return raw.slice(0, 5)
-  return null
+  const match = /^([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/.exec(raw)
+  return match ? `${match[1]}:${match[2]}` : null
 }
 
 const normalizeTransaction = (row = {}) => {
@@ -50,8 +92,8 @@ const buildWritePayload = (payload) => {
   const title = String(payload.title || payload.merchant || '').trim() || 'Transaction'
   const notes = String(payload.notes ?? payload.description ?? '').trim()
   const type = payload.type === 'income' ? 'income' : 'expense'
-  const amount = Number(payload.amount)
-  const transactionDate = toDateString(payload.transaction_date || payload.date)
+  const amount = validateAmount(payload.amount)
+  const transactionDate = validateDate(payload.transaction_date !== undefined ? payload.transaction_date : payload.date)
 
   const row = {
     title,
@@ -72,14 +114,19 @@ const buildWritePayload = (payload) => {
     row.reference_id = emptyToNull(payload.reference_id)
   }
   if ('time' in payload || 'transaction_time' in payload) {
-    row.transaction_time = toTimeString(payload.transaction_time || payload.time)
+    row.transaction_time = validateTime(payload.transaction_time !== undefined ? payload.transaction_time : payload.time)
   }
   if ('source' in payload) {
     row.source = emptyToNull(payload.source) || 'manual'
   }
   if ('scan_confidence' in payload) {
-    const confidence = Number(payload.scan_confidence)
-    row.scan_confidence = Number.isFinite(confidence) ? confidence : null
+    const rawConf = payload.scan_confidence
+    if (rawConf === null) {
+      row.scan_confidence = null
+    } else {
+      const confidence = Number(rawConf)
+      row.scan_confidence = Number.isFinite(confidence) ? confidence : null
+    }
   }
 
   return row
@@ -117,14 +164,8 @@ export async function createUserTransaction(userId, payload) {
     throw new Error('You must be signed in to add a transaction.')
   }
 
-  const nextAmount = Number(payload.amount) || 0
-  if (!Number.isFinite(nextAmount) || nextAmount <= 0) {
-    throw new Error('Transaction amount must be greater than zero.')
-  }
-
   const row = {
     ...buildWritePayload(payload),
-    amount: nextAmount,
     user_id: userId,
   }
 
@@ -146,15 +187,7 @@ export async function updateUserTransaction(userId, transactionId, payload) {
     throw new Error('Missing user or transaction information.')
   }
 
-  const nextAmount = Number(payload.amount)
-  if (!Number.isFinite(nextAmount) || nextAmount <= 0) {
-    throw new Error('Transaction amount must be greater than zero.')
-  }
-
-  const row = {
-    ...buildWritePayload(payload),
-    amount: nextAmount,
-  }
+  const row = buildWritePayload(payload)
 
   const { data, error } = await supabase
     .from('transactions')

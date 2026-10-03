@@ -6,6 +6,8 @@ import {
   firstOfMonth, upsertUserBudget,
 } from '../lib/budgetService'
 import { computeBudgetProgress, filterTransactionsByMonth } from '../utils/budgetCalculations'
+import useToast from '../hooks/useToast'
+import Dialog from '../components/Dialog'
 
 const money = (v) => `₹${Math.round(Math.abs(v)).toLocaleString('en-IN')}`
 
@@ -24,9 +26,10 @@ export default function Budgets({ userId, transactions, onBudgetsChanged }) {
   const [periodMonth, setPeriodMonth] = useState(firstOfMonth())
   const [budgets, setBudgets] = useState([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
   const [dialog, setDialog] = useState(null)
-  const [notice, setNotice] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [requestError, setRequestError] = useState('')
+  const { toast } = useToast()
 
   const isCurrentMonth = periodMonth === firstOfMonth()
 
@@ -34,10 +37,10 @@ export default function Budgets({ userId, transactions, onBudgetsChanged }) {
     if (!userId) return undefined
     let active = true
     setLoading(true)
-    setError('')
+    setRequestError('')
     fetchUserBudgets(userId, periodMonth)
       .then((rows) => { if (active) setBudgets(rows) })
-      .catch((err) => { if (active) setError(err?.message || 'Could not load budgets.') })
+      .catch((err) => { if (active) { setBudgets([]); setRequestError(err?.message || 'Could not load budgets.') } })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [userId, periodMonth])
@@ -74,37 +77,41 @@ export default function Budgets({ userId, transactions, onBudgetsChanged }) {
         : [...budgets, saved].sort((a, b) => a.category.localeCompare(b.category))
       syncParent(next)
       setDialog(null)
-      setNotice('Budget saved.')
-      window.setTimeout(() => setNotice(''), 2000)
+      toast.success('Budget saved.', 2000)
     } catch (err) {
-      setError(err?.message || 'Could not save budget.')
+      throw new Error(err?.message || 'Could not save budget.')
     }
   }
 
   const handleDelete = async (budgetId) => {
+    setBusy(true)
+    setRequestError('')
     try {
       await deleteUserBudget(userId, budgetId)
       syncParent(budgets.filter((b) => b.id !== budgetId))
       setDialog(null)
-      setNotice('Budget removed.')
-      window.setTimeout(() => setNotice(''), 2000)
+      toast.success('Budget removed.', 2000)
     } catch (err) {
-      setError(err?.message || 'Could not delete budget.')
+      setRequestError(err?.message || 'Could not delete budget.')
+    } finally {
+      setBusy(false)
     }
   }
 
   const handleCopyPrevious = async () => {
+    setBusy(true)
     try {
       const copied = await copyBudgetsFromMonth(userId, shiftMonth(periodMonth, -1), periodMonth)
       if (!copied.length) {
-        setError('No budgets in the previous month to copy.')
+        toast.info('No budgets in the previous month to copy.')
         return
       }
       syncParent(copied.sort((a, b) => a.category.localeCompare(b.category)))
-      setNotice(`Copied ${copied.length} budget${copied.length === 1 ? '' : 's'}.`)
-      window.setTimeout(() => setNotice(''), 2500)
+      toast.success(`Copied ${copied.length} budget${copied.length === 1 ? '' : 's'}.`, 2500)
     } catch (err) {
-      setError(err?.message || 'Could not copy budgets.')
+      toast.error(err?.message || 'Could not copy budgets.')
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -117,24 +124,22 @@ export default function Budgets({ userId, transactions, onBudgetsChanged }) {
           <p className="lead">
             {isCurrentMonth
               ? 'How the plan is holding up.'
-              : 'A past month, in hindsight.'}
+              : 'Your plan for this month.'}
           </p>
         </div>
         <div className="budget-month-nav">
-          <button className="icon-button" onClick={() => setPeriodMonth(shiftMonth(periodMonth, -1))} aria-label="Previous month">
+          <button className="icon-button" disabled={busy} onClick={() => setPeriodMonth(shiftMonth(periodMonth, -1))} aria-label="Previous month">
             <ChevronLeft size={18} />
           </button>
           <span className="budget-month-label">{monthLabel(periodMonth)}</span>
-          <button className="icon-button" onClick={() => setPeriodMonth(shiftMonth(periodMonth, 1))} aria-label="Next month">
+          <button className="icon-button" disabled={busy} onClick={() => setPeriodMonth(shiftMonth(periodMonth, 1))} aria-label="Next month">
             <ChevronRight size={18} />
           </button>
         </div>
       </div>
 
-      {notice && <div className="success-notice"><Check size={15} /> {notice}</div>}
-      {error && <p className="error">{error}</p>}
-
-      {progress.length > 0 && (
+      {requestError && !dialog && <p className="error ledger-status" role="alert">{requestError}</p>}
+      {!loading && progress.length > 0 && (
         <section className="card budget-summary">
           <div className="budget-summary-grid">
             <div><small>Allocated</small><strong>{money(totalLimit)}</strong></div>
@@ -142,7 +147,7 @@ export default function Budgets({ userId, transactions, onBudgetsChanged }) {
             <div>
               <small>Remaining</small>
               <strong className={totalLimit - totalSpent < 0 ? 'red-text' : 'value-primary'}>
-                {money(totalLimit - totalSpent)}
+                {totalLimit - totalSpent < 0 ? '−' : ''}{money(totalLimit - totalSpent)}
               </strong>
             </div>
           </div>
@@ -161,10 +166,10 @@ export default function Budgets({ userId, transactions, onBudgetsChanged }) {
           <h2>Nothing allocated yet.</h2>
           <p>Tell the app what each category gets this month.</p>
           <div className="budget-empty-actions">
-            <button className="button lime" onClick={() => setDialog({ mode: 'add' })}>
+            <button className="button lime" disabled={busy} onClick={() => setDialog({ mode: 'add' })}>
               <Plus size={16} /> Set a budget
             </button>
-            <button className="button outline" onClick={handleCopyPrevious}>
+            <button className="button outline" disabled={busy} onClick={handleCopyPrevious}>
               <Copy size={16} /> Copy from last month
             </button>
           </div>
@@ -184,7 +189,7 @@ export default function Budgets({ userId, transactions, onBudgetsChanged }) {
                   <button className="icon-button" aria-label="Edit budget" onClick={() => setDialog({ mode: 'edit', budget: b })}>
                     <Pencil size={15} />
                   </button>
-                  <button className="icon-button danger-button" aria-label="Delete budget" onClick={() => setDialog({ mode: 'delete', budget: b })}>
+                  <button className="icon-button danger-button" aria-label="Delete budget" onClick={() => { setRequestError(''); setDialog({ mode: 'delete', budget: b }) }}>
                     <Trash2 size={15} />
                   </button>
                 </div>
@@ -215,21 +220,20 @@ export default function Budgets({ userId, transactions, onBudgetsChanged }) {
         <BudgetDialog initial={dialog.budget} categories={[dialog.budget.category]} onSave={handleSave} onClose={() => setDialog(null)} />
       )}
       {dialog?.mode === 'delete' && (
-        <div className="modal-backdrop" onMouseDown={() => setDialog(null)}>
-          <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
+        <Dialog label="Remove budget" busy={busy} onClose={() => setDialog(null)}>
             <div className="confirm-icon"><Trash2 size={20} /></div>
             <h2>Remove this budget?</h2>
             <p className="modal-copy">
               {dialog.budget.category} will no longer be tracked for {monthLabel(periodMonth)}.
             </p>
+            {requestError && <p className="error" role="alert">{requestError}</p>}
             <div className="modal-actions">
-              <button className="button outline" onClick={() => setDialog(null)}>Cancel</button>
-              <button className="button delete-button" onClick={() => handleDelete(dialog.budget.id)}>
-                Remove budget
+              <button className="button outline" disabled={busy} onClick={() => setDialog(null)}>Cancel</button>
+              <button className="button delete-button" disabled={busy} onClick={() => handleDelete(dialog.budget.id)}>
+                {busy ? 'Removing…' : 'Remove budget'}
               </button>
             </div>
-          </div>
-        </div>
+        </Dialog>
       )}
     </>
   )
@@ -251,17 +255,18 @@ function BudgetDialog({ initial, categories, onSave, onClose }) {
     setError('')
     try {
       await onSave({ category, monthly_limit: limit })
+    } catch (saveError) {
+      setError(saveError.message || 'Could not save budget.')
     } finally {
       setSaving(false)
     }
   }
 
   return (
-    <div className="modal-backdrop" onMouseDown={onClose}>
-      <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
+    <Dialog label={isEdit ? 'Edit budget' : 'Set a budget'} busy={saving} onClose={onClose}>
         <div className="section-head">
           <h2>{isEdit ? 'Edit budget' : 'Set a budget'}</h2>
-          <button className="icon-button" onClick={onClose} aria-label="Close"><X size={18} /></button>
+          <button className="icon-button" onClick={onClose} disabled={saving} aria-label="Close"><X size={18} /></button>
         </div>
         <form className="modal-form" onSubmit={submit}>
           <label>Category
@@ -274,15 +279,14 @@ function BudgetDialog({ initial, categories, onSave, onClose }) {
             <input required type="number" min="1" step="1" inputMode="numeric"
               value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="5000" />
           </label>
-          {error && <p className="error">{error}</p>}
+          {error && <p className="error" role="alert">{error}</p>}
           <div className="modal-actions">
-            <button type="button" className="button outline" onClick={onClose}>Cancel</button>
+            <button type="button" className="button outline" onClick={onClose} disabled={saving}>Cancel</button>
             <button className="button lime" disabled={saving}>
               {saving ? 'Saving…' : 'Save budget'} <Check size={16} />
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </Dialog>
   )
 }

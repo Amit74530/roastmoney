@@ -1,13 +1,15 @@
+import { createClient } from '@supabase/supabase-js'
+
 export const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://tsycpkdixtjxxkjlwsww.supabase.co'
 export const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzeWNwa2RpeHRqeHhramx3c3d3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0MjQ5ODAsImV4cCI6MjEwNDAwMDk4MH0.C84ZK9OYQtEwOfLptQwmUDWos0SiTDo_6SnK_vgYyw8'
 
 const createSupabaseClient = () => {
-  if (!window.supabase) {
-    console.error('[Supabase] CDN is not loaded. Ensure the Supabase script is present before the app loads.')
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.error('[Supabase] Missing supabaseUrl or supabaseAnonKey.')
     return null
   }
 
-  return window.supabase.createClient(supabaseUrl, supabaseAnonKey, {
+  return createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
       persistSession: true,
       autoRefreshToken: true,

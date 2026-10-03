@@ -1,22 +1,21 @@
-const isIncome = (transaction) => transaction.type === 'income'
-const absoluteAmount = (transaction) => Math.abs(Number(transaction.amount) || 0)
+import { parseCalendarDate } from './localDate'
 
-const parseTransactionDate = (transaction) => {
-  const raw = transaction.transaction_date || transaction.date
-  if (!raw) return null
-  const [year, month, day] = String(raw).slice(0, 10).split('-').map(Number)
-  if (!year || !month || !day) return null
-  return new Date(year, month - 1, day)
+const isIncome = (transaction) => transaction?.type === 'income'
+const absoluteAmount = (transaction) => {
+  const amount = Number(transaction?.amount)
+  return Number.isFinite(amount) ? Math.abs(amount) : 0
 }
 
-export const calculateFinancialSummary = (transactions) => {
+const parseTransactionDate = (transaction) => parseCalendarDate(transaction?.transaction_date || transaction?.date)
+
+export const calculateFinancialSummary = (transactions = []) => {
   const totalIncome = transactions.filter(isIncome).reduce((sum, transaction) => sum + absoluteAmount(transaction), 0)
   const totalExpenses = transactions.filter((transaction) => !isIncome(transaction)).reduce((sum, transaction) => sum + absoluteAmount(transaction), 0)
   const totalBalance = totalIncome - totalExpenses
   return { totalBalance, totalIncome, totalExpenses, totalSavings: totalBalance }
 }
 
-export const calculateMonthlyOverview = (transactions, referenceDate = new Date()) => {
+export const calculateMonthlyOverview = (transactions = [], referenceDate = new Date()) => {
   const year = referenceDate.getFullYear()
   const month = referenceDate.getMonth()
   const currentMonth = transactions.filter((transaction) => {

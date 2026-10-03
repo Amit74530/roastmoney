@@ -13,7 +13,7 @@
   --primary-soft: rgba(57, 229, 140, 0.14);
   --text-primary: #f3f7f4;
   --text-secondary: #9aa89f;
-  --text-muted: #6f7c74;
+  --text-muted: #95a39a;
   --border: #26332b;
   --border-subtle: rgba(255, 255, 255, 0.07);
   --auth-glow: rgba(57, 229, 140, 0.16);
@@ -29,7 +29,7 @@
   --value-primary: var(--primary);
   --value-neutral: var(--text-primary);
   --chart-1: #39e58c;
-  --chart-2: #7ae0c2;
+  --chart-2: #b2a4ef;
   --chart-3: #8ea196;
   --chart-4: #4d6156;
   --chart-grid: rgba(255, 255, 255, 0.07);
@@ -83,15 +83,15 @@ html[data-theme='light'] {
   --surface: #ffffff;
   --surface-elevated: #ffffff;
   --surface-card: #ffffff;
-  --primary: #12945c;
-  --accent-primary: #12945c;
-  --accent-bright: #16ab6c;
+  --primary: #087044;
+  --accent-primary: #087044;
+  --accent-bright: #095e3c;
   --accent-soft: #c8f5de;
   --accent-dark: #087044;
   --primary-soft: rgba(18, 148, 92, 0.12);
   --text-primary: #132016;
   --text-secondary: #5f6d64;
-  --text-muted: #88948c;
+  --text-muted: #647268;
   --border: #d7e0d9;
   --border-subtle: #e6ece7;
   --auth-glow: rgba(18, 148, 92, 0.12);
@@ -106,16 +106,16 @@ html[data-theme='light'] {
   --glass-shadow: 0 12px 32px rgba(48, 59, 50, 0.08);
   --value-primary: #087044;
   --chart-1: #12945c;
-  --chart-2: #3d8f78;
+  --chart-2: #7864bc;
   --chart-3: #8a9a90;
   --chart-4: #c3cdc6;
   --chart-grid: rgba(20, 23, 20, 0.08);
-  --success: #12945c;
-  --danger: #dc3d4a;
-  --warning: #d89011;
-  --health-ok: #12945c;
-  --health-warn: #d89011;
-  --health-critical: #dc3d4a;
+  --success: #087044;
+  --danger: #c12d3a;
+  --warning: #94620b;
+  --health-ok: #087044;
+  --health-warn: #94620b;
+  --health-critical: #c12d3a;
   --shadow-sm: 0 8px 24px rgba(17, 19, 24, 0.06);
   --shadow-md: 0 20px 46px rgba(17, 19, 24, 0.1);
   --lime: var(--accent-primary);
@@ -138,7 +138,7 @@ html, body, #root {
   max-width: 100%;
   background: var(--background);
   color: var(--text-primary);
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 html {
